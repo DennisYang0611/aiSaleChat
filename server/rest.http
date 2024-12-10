@@ -1,0 +1,21 @@
+@host=http://localhost:3100/api
+@token=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwibmFtZSI6Iua1i-ivleeUqOaItyIsInBhc3N3b3JkIjoiJDJiJDEwJG5TVHRFa0RDcEh0T0phTnZnQ0VFZHVZek1rQ1I2T0dIY1EuSzNaQVJlQUo2ZDFyUUxJeXBXIiwiY3JlYXRlZEF0IjoiMjAyNC0xMi0wNlQwNjo0NTo0Ny4yMzVaIiwidXBkYXRlZEF0IjoiMjAyNC0xMi0wNlQwNjo0NTo0Ny4yMzVaIn0.e8TExxw2qQYNvuNRQMcWeqeQ6_RtxjJEfN3GteVmnaQ
+
+### 用户登录
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "123456"
+}
+
+### 用户注册
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+    "username": "测试用户",
+    "email": "test@example.com",
+    "password": "123456"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "server",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && tsc-alias",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push --config=./drizzle.config.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.13",
+    "drizzle-orm": "^0.37.0",
+    "postgres": "^3.4.5",
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.7",
+    "@hono/zod-validator": "^0.4.1",
+    "bcrypt": "^5.1.1",
+    "dayjs": "^1.11.13"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^20.11.17",
+    "drizzle-kit": "^0.29.1",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2",
+    "tsx": "^4.7.1",
+    "tsc-alias": "^1.8.10"
+  }
+}
