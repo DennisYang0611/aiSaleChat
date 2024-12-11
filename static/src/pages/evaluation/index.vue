@@ -78,7 +78,7 @@
 		</view>
 
 		<!-- 底部按钮 -->
-		<button class="submit-btn" @tap="handleSubmit">创建完成</button>
+		<button class="submit-btn" @tap="handleConfirm">创建完成</button>
 
 		<!-- 加载遮罩 -->
 		<view class="loading-mask" v-if="isThinking">
@@ -103,20 +103,50 @@
 				</view>
 			</view>
 		</view>
+
+		<!-- 保存加载动画 -->
+		<view class="loading-mask" v-if="isSaving">
+			<view class="loading-content">
+				<view class="loading-spinner"></view>
+				<text class="loading-text">{{ loadingText }}</text>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
 
+interface Dimension {
+	keyword: string;
+	score: number;
+}
+
 export default Vue.extend({
 	data() {
 		return {
-			dimensions: [
-				{ keyword: '', score: 50 }
-			],
+			promptText: '',
+			dimensions: [] as Dimension[],
 			isThinking: false,
-			thinkingTimer: null as any
+			thinkingTimer: null as any,
+			isSaving: false,
+			loadingText: '正在生成简介...'
+		}
+	},
+	onLoad() {
+		// 获取评分数据
+		const evaluationData = uni.getStorageSync('evaluationData');
+		if (evaluationData) {
+			this.promptText = evaluationData.promptText;
+			// 确保至少有一个维度
+			this.dimensions = evaluationData.dimensions.length > 0 
+				? evaluationData.dimensions 
+				: [{ keyword: '', score: 50 }];
+			// 清理数据
+			uni.removeStorageSync('evaluationData');
+		} else {
+			// 如果没有数据，初始化一个默认维度
+			this.dimensions = [{ keyword: '', score: 50 }];
 		}
 	},
 	computed: {
@@ -165,12 +195,10 @@ export default Vue.extend({
 		},
 		handleScoreInput(index: number, event: any) {
 			let value = parseInt(event.detail.value);
-			// 限制输入范围在0-100之间
 			if (isNaN(value)) value = 0;
 			if (value < 0) value = 0;
 			if (value > 100) value = 100;
 			
-			// 计算如果修改这个值，其他维度需要如何调整
 			const oldValue = this.dimensions[index].score;
 			const diff = value - oldValue;
 			const newTotal = this.totalScore + diff;
@@ -183,7 +211,7 @@ export default Vue.extend({
 				return;
 			}
 			
-			this.dimensions[index].score = value;
+			this.$set(this.dimensions[index], 'score', value);
 		},
 		handleSliderChange(index: number, event: any) {
 			const value = event.detail.value;
@@ -213,40 +241,116 @@ export default Vue.extend({
 				});
 			}
 		},
-		handleSubmit() {
-			// 检查是否所有维度都已填写
-			const isEmpty = this.dimensions.some(item => !item.keyword.trim() || !item.score);
-			if (isEmpty) {
+		async generateDescription() {
+			try {
+				const dimensionsText = this.dimensions
+					.map(d => `${d.keyword}(${d.score}分)`)
+					.join('、');
+
+				const response = await uni.request({
+					url: 'https://api.fastgpt.in/api/v1/chat/completions',
+					method: 'POST',
+					header: {
+						'Authorization': 'Bearer fastgpt-wYCt6yx1YLzlRinJeJXeF07SebGRpxFXMVltL2IXSwUmfgr8vGdrX',
+						'Content-Type': 'application/json'
+					},
+					data: {
+						chatId: Math.random().toString(36).substring(7),
+						stream: false,
+						detail: false,
+						responseChatItemId: 'my_responseChatItemId',
+						variables: {
+							prompt: this.promptText,
+							dimension: dimensionsText
+						},
+						messages: [
+							{
+								role: 'user',
+								content: `请根据以下信息生成一段简短的训练场景简介（50字以内）：\n角色信息：${this.promptText}\n评分维度：${dimensionsText}\n要求：简明扼要地描述训练目标和关键点。`
+							}
+						]
+					}
+				});
+
+				if (response.statusCode === 200 && response.data) {
+					const aiResponse = response.data as any;
+					console.log('API返回数据:', aiResponse); // 调试用
+					if (aiResponse.choices?.[0]?.message?.content) {
+						return aiResponse.choices[0].message.content.trim();
+					}
+					if (typeof aiResponse === 'string') {
+						return aiResponse.trim();
+					}
+				}
+				throw new Error('生成简介失败');
+			} catch (error) {
+				console.error('生成简介错误:', error);
+				throw error;
+			}
+		},
+		async handleConfirm() {
+			if (this.dimensions.length === 0) {
 				uni.showToast({
-					title: '请完善所有评分维度',
+					title: '请添加评分维度',
 					icon: 'none'
 				});
 				return;
 			}
-			
-			// 检查总分是否超过100
-			if (this.totalScore > 100) {
+
+			if (this.totalScore !== 100) {
 				uni.showToast({
-					title: '总分不能超过100分',
+					title: '总分必须等于100分',
 					icon: 'none'
 				});
 				return;
 			}
-			
-			console.log('提交评分维度', this.dimensions);
-			// 显示保存成功提示
-			uni.showToast({
-				title: '保存成功',
-				icon: 'success',
-				duration: 1500
-			});
-			
-			// 延迟后返回首页
-			setTimeout(() => {
-				uni.reLaunch({
-					url: '/pages/index/index'
+
+			try {
+				this.isSaving = true;
+				this.loadingText = '正在生成简介...';
+
+				// 生成简介
+				const description = await this.generateDescription();
+
+				this.loadingText = '正在保存...';
+
+				// 保存提示词和维度的关联数据
+				const agentData = {
+					prompt: this.promptText,
+					dimensions: this.dimensions,
+					description: description,
+					createTime: new Date().getTime()
+				};
+
+				console.log('保存的数据:', agentData); // 调试用
+
+				// 获取现有的 agents 数据
+				const agents = uni.getStorageSync('agents') || [];
+				agents.push(agentData);
+				
+				// 更新存储
+				uni.setStorageSync('agents', agents);
+
+				uni.showToast({
+					title: '保存成功',
+					icon: 'success',
+					duration: 1500
 				});
-			}, 1500);
+
+				setTimeout(() => {
+					uni.reLaunch({
+						url: '/pages/index/index'
+					});
+				}, 1500);
+
+			} catch (error) {
+				this.isSaving = false;
+				uni.showToast({
+					title: '操作失败，请重试',
+					icon: 'none'
+				});
+				console.error('Error in handleConfirm:', error);
+			}
 		}
 	}
 });
@@ -440,18 +544,18 @@ button::after {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(255, 255, 255, 0.98);
+	background: rgba(255, 255, 255, 0.9);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	z-index: 9999;
+	z-index: 999;
 }
 
 .loading-content {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 40rpx;
+	gap: 20rpx;
 }
 
 .dynamic-logo {
@@ -653,5 +757,44 @@ button::after {
 	.thinking-text {
 		font-size: 36rpx;
 	}
+}
+
+.loading-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 999;
+}
+
+.loading-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20rpx;
+}
+
+.loading-spinner {
+	width: 60rpx;
+	height: 60rpx;
+	border: 4rpx solid #f3f3f3;
+	border-top: 4rpx solid #333;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+}
+
+.loading-text {
+	font-size: 28rpx;
+	color: #333;
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
 }
 </style> 

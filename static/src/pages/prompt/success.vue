@@ -29,7 +29,15 @@
 			<!-- 文字提示 -->
 			<view class="text-area">
 				<text class="title">你的提示词已经生成</text>
-				<text class="subtitle">文本框</text>
+				<view class="prompt-box">
+					<textarea
+						class="prompt-textarea"
+						v-model="promptText"
+						auto-height
+						placeholder="编辑你的提示词"
+					></textarea>
+				</view>
+				<text class="edit-hint">你可以编辑提示词内容</text>
 			</view>
 			
 			<!-- 确认按钮 -->
@@ -42,16 +50,61 @@
 import Vue from 'vue';
 
 export default Vue.extend({
+	data() {
+		return {
+			promptText: '',
+			originalPrompt: ''
+		}
+	},
+	onLoad() {
+		// 从本地存储获取生成的提示词
+		const prompt = uni.getStorageSync('generatedPrompt');
+		if (prompt) {
+			this.promptText = prompt;
+			this.originalPrompt = prompt;
+		}
+	},
 	methods: {
 		handleClose() {
-			uni.reLaunch({
-				url: '/pages/evaluation/index'
-			});
+			// 清除本地存储的数据
+			uni.removeStorageSync('agentFormData');
+			uni.removeStorageSync('generatedPrompt');
+			// 提示用户是否保存更改
+			if (this.promptText !== this.originalPrompt) {
+				uni.showModal({
+					title: '提示',
+					content: '你有未保存的更改，确定要离开吗？',
+					success: (res) => {
+						if (res.confirm) {
+							uni.reLaunch({
+								url: '/pages/evaluation/index'
+							});
+						}
+					}
+				});
+			} else {
+				uni.reLaunch({
+					url: '/pages/evaluation/index'
+				});
+			}
 		},
 		handleConfirm() {
-			uni.reLaunch({
-				url: '/pages/evaluation/index'
+			// 更新存储的提示词
+			uni.setStorageSync('generatedPrompt', this.promptText);
+			
+			// 显示保存成功提示
+			uni.showToast({
+				title: '提示词已更新',
+				icon: 'success',
+				duration: 1500
 			});
+
+			// 延迟跳转
+			setTimeout(() => {
+				uni.redirectTo({
+					url: '/pages/dimension/index'
+				});
+			}, 1500);
 		}
 	}
 });
@@ -68,15 +121,18 @@ export default Vue.extend({
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0 40rpx;
+	padding: 0 30rpx;
 }
 
 .modal-content {
 	width: 100%;
 	background-color: #fff;
 	border-radius: 24rpx;
-	padding: 60rpx 40rpx;
+	padding: 40rpx 30rpx;
 	position: relative;
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
 }
 
 .close-btn {
@@ -97,9 +153,9 @@ export default Vue.extend({
 }
 
 .animation-container {
-	width: 300rpx;
-	height: 300rpx;
-	margin: 0 auto 40rpx;
+	width: 200rpx;
+	height: 200rpx;
+	margin: 0 auto 30rpx;
 	position: relative;
 }
 
@@ -224,104 +280,153 @@ export default Vue.extend({
 	flex-direction: column;
 	align-items: center;
 	gap: 20rpx;
-	margin-bottom: 60rpx;
+	margin-bottom: 30rpx;
+	flex-shrink: 0;
 }
 
 .title {
 	font-size: 36rpx;
 	color: #333;
 	font-weight: bold;
+	margin-bottom: 10rpx;
 }
 
-.subtitle {
-	font-size: 28rpx;
-	color: #666;
+.prompt-box {
+	background: rgba(248, 248, 248, 0.9);
+	border-radius: 16rpx;
 	padding: 20rpx;
-	background-color: #F8F8F8;
-	border-radius: 12rpx;
+	margin-top: 20rpx;
 	width: 100%;
+	box-sizing: border-box;
+	border: 2rpx solid #eee;
+	transition: all 0.3s ease;
+	position: relative;
+	height: 300rpx;
+	display: flex;
+}
+
+.prompt-box:focus-within {
+	background: #fff;
+	border-color: #333;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.prompt-textarea {
+	color: #333;
+	font-size: 26rpx;
+	line-height: 1.6;
+	flex: 1;
+	background: transparent;
+	border: none;
+	padding: 0;
+	word-break: break-all;
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	overflow-y: scroll;
+	-webkit-overflow-scrolling: touch;
+	box-sizing: border-box;
+}
+
+/* 修改滚动条样式 */
+.prompt-textarea::-webkit-scrollbar {
+	width: 12rpx !important;
+}
+
+.prompt-textarea::-webkit-scrollbar-track {
+	background: #f5f5f5;
+	border-radius: 6rpx;
+}
+
+.prompt-textarea::-webkit-scrollbar-thumb {
+	background: #999;
+	border-radius: 6rpx;
+}
+
+.prompt-textarea::-webkit-scrollbar-thumb:hover {
+	background: #666;
+}
+
+.edit-hint {
+	font-size: 24rpx;
+	color: #999;
+	margin-top: 8rpx;
 	text-align: center;
 }
 
 .confirm-btn {
 	width: 100%;
-	height: 100rpx;
+	height: 90rpx;
 	background: #333;
 	border-radius: 16rpx;
 	color: #fff;
-	font-size: 32rpx;
+	font-size: 30rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	flex-shrink: 0;
+	margin-top: auto;
 }
 
 button::after {
 	border: none;
 }
 
-/* 小屏幕适配 (< 375px) */
-@media screen and (max-width: 375px) {
-  .modal-content {
-    padding: 40rpx 30rpx;
-  }
+/* 针对不同设备高度的优化 */
+@media screen and (max-height: 667px) {
+	.animation-container {
+		width: 160rpx;
+		height: 160rpx;
+		margin-bottom: 20rpx;
+	}
 
-  .success-icon {
-    width: 240rpx;
-    height: 240rpx;
-  }
+	.prompt-box {
+		height: 240rpx;
+	}
 
-  .title {
-    font-size: 32rpx;
-  }
-
-  .subtitle {
-    font-size: 24rpx;
-  }
-
-  .confirm-btn {
-    height: 90rpx;
-    font-size: 28rpx;
-  }
+	.title {
+		font-size: 32rpx;
+	}
 }
 
-/* 平板适配 (768px - 1024px) */
-@media screen and (min-width: 768px) {
-  .modal-content {
-    max-width: 800rpx;
-    margin: 0 auto;
-  }
-
-  .success-icon {
-    width: 400rpx;
-    height: 400rpx;
-  }
-
-  .title {
-    font-size: 44rpx;
-  }
-
-  .subtitle {
-    font-size: 32rpx;
-    padding: 30rpx;
-  }
-
-  .confirm-btn {
-    width: 400rpx;
-    height: 120rpx;
-    font-size: 36rpx;
-    margin: 0 auto;
-  }
+/* 较大屏幕的优化 */
+@media screen and (min-height: 700px) {
+	.prompt-box {
+		height: 360rpx;
+	}
 }
 
-/* 大屏桌面适配 */
-@media screen and (min-width: 1024px) {
-  .modal-content {
-    max-width: 1000rpx;
-  }
+/* 修改滚动提示的样式 */
+.prompt-box::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 40rpx;
+	background: linear-gradient(transparent, rgba(248, 248, 248, 0.9));
+	pointer-events: none;
+	opacity: 0.8;
+	z-index: 1;
+}
 
-  .success-icon {
-    width: 500rpx;
-    height: 500rpx;
-  }
+/* 添加滚动提示箭头 */
+.prompt-box::before {
+	content: '';
+	position: absolute;
+	bottom: 10rpx;
+	right: 16rpx;
+	width: 12rpx;
+	height: 12rpx;
+	border-right: 3rpx solid #999;
+	border-bottom: 3rpx solid #999;
+	transform: rotate(45deg);
+	z-index: 2;
+	opacity: 0.6;
+}
+
+/* 修复 textarea 在某些设备上的默认样式 */
+.prompt-textarea {
+	width: 100% !important;
+	height: 100% !important;
 }
 </style> 

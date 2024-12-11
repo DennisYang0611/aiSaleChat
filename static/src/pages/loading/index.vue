@@ -27,18 +27,101 @@
 <script lang="ts">
 import Vue from 'vue';
 
+interface AIResponse {
+	id: string;
+	model: string;
+	usage: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+	};
+	choices: Array<{
+		message: {
+			role: string;
+			content: string;
+		};
+		finish_reason: string;
+		index: number;
+	}>;
+}
+
 export default Vue.extend({
-	onLoad() {
-		// 模拟加载过程
-		setTimeout(() => {
+	data() {
+		return {
+			promptText: '',
+		}
+	},
+	onLoad(options) {
+		const formData = uni.getStorageSync('agentFormData');
+		if (!formData) {
+			this.handleError('未获取到表单数据');
+			return;
+		}
+
+		// 准备请求数据
+		const requestData = {
+			chatId: Math.random().toString(36).substring(7),
+			stream: false,
+			detail: false,
+			responseChatItemId: 'my_responseChatItemId',
+			variables: {
+				name: formData.name,
+				scene: formData.scene,
+				customerProfile: formData.customerProfile,
+				buyingPower: formData.buyingPower,
+				consumptionHabits: formData.consumptionHabits,
+				consumptionConcepts: formData.consumptionConcepts
+			},
+			messages: [
+				{
+					role: 'user',
+					content: '生成'
+				}
+			]
+		};
+
+		// 发起请求
+		uni.request({
+			url: 'https://api.fastgpt.in/api/v1/chat/completions',
+			method: 'POST',
+			header: {
+				'Authorization': 'Bearer fastgpt-ivclLFAcNWNyOVNvvm8K9LjcoajA5sH8roTienpWDm9pbsKyiSk8aoHXnH7GhV',
+				'Content-Type': 'application/json'
+			},
+			data: requestData,
+			success: (res: UniApp.RequestSuccessCallbackResult) => {
+				try {
+					const response = res.data as AIResponse;
+					this.promptText = response.choices[0].message.content;
+					
+					// 存储生成的提示词
+					uni.setStorageSync('generatedPrompt', this.promptText);
+					
+					// 跳转到成功页面
+					this.navigateToSuccess();
+				} catch (error) {
+					this.handleError('解析响应失败');
+				}
+			},
+			fail: () => {
+				this.handleError('请求失败');
+			}
+		});
+	},
+	methods: {
+		handleError(message: string) {
+			uni.showToast({
+				title: message,
+				icon: 'none'
+			});
+			setTimeout(() => {
+				uni.navigateBack();
+			}, 1500);
+		},
+		navigateToSuccess() {
 			uni.navigateTo({
 				url: '/pages/prompt/success'
 			});
-		}, 2000);  // 2秒后跳转
-	},
-	methods: {
-		handleCancel() {
-			uni.navigateBack();
 		}
 	}
 });

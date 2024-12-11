@@ -16,16 +16,28 @@ Content-Type: application/json
 
 {
     "username": "测试用户",
-    "email": "test@example.com",
+    "email": "test2@example.com",
     "password": "123456"
 }
 
+### 获取用户列表
+GET {{host}}/user?page=1&pageSize=10
+
+### 更新用户信息
+PATCH {{host}}/user/78f8f714-258a-4d39-8eb1-94cb4aa5d6c4
+Content-Type: application/json
+
+{
+    "name": "新用户名"
+}
+
+
 ### 获取Agent
-GET {{host}}/agent
+GET {{host}}/agent?page=1&pageSize=10
 
 
 ### 获取单个Agent
-GET {{host}}/agent/1
+GET {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
 
 
 ### 创建Agent
@@ -33,7 +45,8 @@ POST {{host}}/agent
 Content-Type: application/json
 
 {
-  "name": "test",
+  "creatorId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41",
+  "name": "testxxx",
   "avatar": "https://lslkgpcf.cloud.sealos.io/logo.png",
   "prompt": {
     "scene": "你是一个专业的销售顾问,负责帮助用户选择合适的产品",
@@ -50,11 +63,11 @@ Content-Type: application/json
 }
 
 ### 更新Agent
-PATCH {{host}}/agent/1
+PATCH {{host}}/agent/0ab2ead0-7e6e-4804-b623-5ddbe12a1e41
 Content-Type: application/json
 
 {
-    "name": "测ssss试"
+    "name": "sssssss"
 }
 
 ### 删除Agent

@@ -1,20 +1,23 @@
 import { Hono } from "hono";
-import { failRes, successRes } from "~/common/res";
+import { failRes, listRes, successRes } from "~/common/res";
 import { Agents } from "~/db/schema";
 import { db, eq } from "~/db";
 import { z } from "zod";
-import { Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { pageSchema, paramSchema } from "~/common/zodSchema";
 
 const router = new Hono();
 
-const paramSchema = z.object({
-  id: z.coerce.number().min(1, "ID不能为空"),
-});
+router.get("/api/agent", zValidator("query", pageSchema), async (c) => {
+  const { page, pageSize } = c.req.valid("query");
+  const offset = (page - 1) * pageSize;
 
-router.get("/api/agent", async (c) => {
-  const agents = await db.select().from(Agents).limit(1);
-  return c.json(successRes(agents));
+  const [agents, total] = await Promise.all([
+    db.select().from(Agents).limit(pageSize).offset(offset),
+    db.$count(Agents),
+  ]);
+
+  return c.json(listRes(agents, total, page, pageSize));
 });
 
 // 获取单个
@@ -30,10 +33,8 @@ router.get("/api/agent/:id", zValidator("param", paramSchema), async (c) => {
 // 创建
 router.post("/api/agent", async (c) => {
   const data = await c.req.json();
-  const agent = await db
-    .insert(Agents)
-    .values(data)
-    .returning({ id: Agents.id });
+
+  const agent = await db.insert(Agents).values(data).returning();
   return c.json(successRes(agent));
 });
 
@@ -54,8 +55,7 @@ router.patch(
       .set({
         name,
       })
-      .where(eq(Agents.id, id))
-      .returning();
+      .where(eq(Agents.id, id));
     if (!agent.length) {
       return c.json(failRes("未找到该Agent"));
     }

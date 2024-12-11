@@ -11,45 +11,13 @@
 			</view>
 		</view>
 
-		<!-- 基本信息区域 -->
-		<view class="basic-info">
-			<!-- 头像 -->
-			<view class="avatar-area" @tap="handleChangeAvatar">
-				<default-avatar></default-avatar>
-				<view class="change-avatar">
-					<text class="change-text">更换头像</text>
-				</view>
-			</view>
-			
-			<!-- 名称和简介 -->
-			<view class="info-form">
-				<view class="form-item">
-					<text class="form-label">训练名称</text>
-					<input 
-						class="input-box"
-						type="text"
-						v-model="formData.name"
-						placeholder="请输入训练名称"
-					/>
-				</view>
-				<view class="form-item">
-					<text class="form-label">训练简介</text>
-					<textarea 
-						class="textarea-box"
-						v-model="formData.description"
-						placeholder="请输入训练简介"
-					/>
-				</view>
-			</view>
-		</view>
-
 		<!-- 提示词区域 -->
 		<view class="prompt-area">
 			<view class="form-item">
 				<text class="form-label">提示词</text>
 				<textarea 
 					class="prompt-box"
-					v-model="formData.prompt"
+					v-model="promptText"
 					placeholder="请输入提示词"
 				/>
 			</view>
@@ -62,14 +30,14 @@
 				<view class="dimensions-list">
 					<view 
 						class="dimension-item"
-						v-for="(item, index) in formData.dimensions"
+						v-for="(item, index) in dimensions"
 						:key="index"
 					>
 						<view class="dimension-content">
 							<input 
 								class="dimension-name"
 								type="text"
-								v-model="item.name"
+								v-model="item.keyword"
 								placeholder="维度名称"
 							/>
 							<view class="score-control">
@@ -115,48 +83,57 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import DefaultAvatar from '@/components/DefaultAvatar.vue';
+
+interface Dimension {
+	keyword: string;
+	score: number;
+}
+
+interface Agent {
+	prompt: string;
+	dimensions: Dimension[];
+	createTime: number;
+}
 
 export default Vue.extend({
-	components: {
-		DefaultAvatar
-	},
 	data() {
 		return {
-			formData: {
-				name: '',
-				description: '',
-				prompt: '',
-				dimensions: [
-					{ name: '', score: 50 }
-				]
-			}
+			currentIndex: -1,
+			promptText: '',
+			dimensions: [] as Dimension[]
+		}
+	},
+	onLoad() {
+		const editData = uni.getStorageSync('currentEditAgent');
+		if (editData) {
+			this.currentIndex = editData.index;
+			this.promptText = editData.data.prompt;
+			this.dimensions = editData.data.dimensions;
+		} else {
+			uni.showToast({
+				title: '获取数据失败',
+				icon: 'none'
+			});
+			setTimeout(() => {
+				uni.navigateBack();
+			}, 1500);
 		}
 	},
 	computed: {
 		totalScore(): number {
-			return this.formData.dimensions.reduce((sum, item) => sum + Number(item.score), 0);
+			return this.dimensions.reduce((sum: number, item: Dimension) => sum + Number(item.score), 0);
 		}
 	},
 	methods: {
 		handleBack() {
-			uni.reLaunch({
+			uni.redirectTo({
 				url: '/pages/index/index'
 			});
 		},
-		handleChangeAvatar() {
-			uni.chooseImage({
-				count: 1,
-				success: (res) => {
-					console.log('选择图片', res.tempFilePaths[0]);
-					// 这里处理头像上传逻辑
-				}
-			});
-		},
 		handleScoreChange(index: number, delta: number) {
-			const newScore = Number(this.formData.dimensions[index].score) + delta;
+			const newScore = Number(this.dimensions[index].score) + delta;
 			if (newScore >= 0 && newScore <= 100) {
-				this.formData.dimensions[index].score = newScore;
+				this.$set(this.dimensions[index], 'score', newScore);
 			}
 		},
 		handleScoreInput(index: number, event: any) {
@@ -164,35 +141,67 @@ export default Vue.extend({
 			if (isNaN(value)) value = 0;
 			if (value < 0) value = 0;
 			if (value > 100) value = 100;
-			this.formData.dimensions[index].score = value;
+			this.$set(this.dimensions[index], 'score', value);
 		},
 		handleSliderChange(index: number, event: any) {
-			this.formData.dimensions[index].score = event.detail.value;
+			this.$set(this.dimensions[index], 'score', event.detail.value);
 		},
 		handleAddDimension() {
-			this.formData.dimensions.push({ name: '', score: 50 });
+			this.dimensions.push({ keyword: '', score: 50 });
 		},
 		handleSave() {
-			// 验证总分是否超过100
-			if (this.totalScore > 100) {
+			if (!this.promptText.trim()) {
 				uni.showToast({
-					title: '总分不能超过100分',
+					title: '请输入提示词',
 					icon: 'none'
 				});
 				return;
 			}
-			
-			console.log('保存训练', this.formData);
-			uni.showToast({
-				title: '保存成功',
-				icon: 'success',
-				duration: 1500
-			});
-			setTimeout(() => {
-				uni.reLaunch({
-					url: '/pages/index/index'
+
+			if (this.dimensions.length === 0) {
+				uni.showToast({
+					title: '请添加评分维度',
+					icon: 'none'
 				});
-			}, 1500);
+				return;
+			}
+
+			const totalScore = this.dimensions.reduce((sum, dim) => sum + dim.score, 0);
+			if (totalScore !== 100) {
+				uni.showToast({
+					title: '评分维度总分必须为100',
+					icon: 'none'
+				});
+				return;
+			}
+
+			try {
+				const agents = uni.getStorageSync('agents') || [];
+				agents[this.currentIndex] = {
+					prompt: this.promptText,
+					dimensions: this.dimensions,
+					createTime: new Date().getTime()
+				};
+				
+				uni.setStorageSync('agents', agents);
+				uni.removeStorageSync('currentEditAgent');
+
+				uni.showToast({
+					title: '保存成功',
+					icon: 'success',
+					duration: 1500
+				});
+
+				setTimeout(() => {
+					uni.navigateBack();
+				}, 1500);
+			} catch (error) {
+				console.error('保存失败:', error);
+				uni.showToast({
+					title: '保存失败',
+					icon: 'none'
+				});
+			}
 		}
 	}
 });
@@ -242,78 +251,6 @@ export default Vue.extend({
 .save-text {
 	color: #fff;
 	font-size: 28rpx;
-}
-
-/* 基本信息区域 */
-.basic-info {
-	background: #F8F8F8;
-	border-radius: 20rpx;
-	padding: 30rpx;
-	margin-bottom: 40rpx;
-}
-
-.avatar-area {
-	width: 160rpx;
-	height: 160rpx;
-	margin: 0 auto 30rpx;
-	position: relative;
-	border-radius: 80rpx;
-	overflow: hidden;
-}
-
-.change-avatar {
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 50rpx;
-	background: rgba(0, 0, 0, 0.6);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.change-text {
-	color: #fff;
-	font-size: 24rpx;
-}
-
-.info-form {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
-}
-
-.form-item {
-	display: flex;
-	flex-direction: column;
-	gap: 12rpx;
-}
-
-.form-label {
-	font-size: 28rpx;
-	color: #666;
-	padding-left: 4rpx;
-}
-
-.input-box {
-	height: 90rpx;
-	background: #fff;
-	border-radius: 16rpx;
-	padding: 0 30rpx;
-	font-size: 32rpx;
-	width: 100%;
-	box-sizing: border-box;
-}
-
-.textarea-box {
-	height: 180rpx;
-	background: #fff;
-	border-radius: 16rpx;
-	padding: 20rpx 30rpx;
-	font-size: 32rpx;
-	width: 100%;
-	box-sizing: border-box;
 }
 
 /* 提示词区域 */
@@ -427,31 +364,12 @@ export default Vue.extend({
 	.header-title {
 		font-size: 32rpx;
 	}
-	
-	.avatar-area {
-		width: 120rpx;
-		height: 120rpx;
-	}
 }
 
 @media screen and (min-width: 768px) {
 	.container {
 		max-width: 1200rpx;
 		margin: 0 auto;
-	}
-	
-	.basic-info {
-		display: flex;
-		gap: 40rpx;
-		align-items: flex-start;
-	}
-	
-	.avatar-area {
-		margin: 0;
-	}
-	
-	.info-form {
-		flex: 1;
 	}
 	
 	.dimensions-list {

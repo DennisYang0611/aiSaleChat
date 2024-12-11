@@ -83,6 +83,12 @@
 				"navigationBarTitleText": "Chat",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/dimension/index",
+			"style": {
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {
