@@ -48,7 +48,7 @@ export const Agents = pgTable("agents", {
   // Agent名称
   name: varchar("name", { length: 255 }).notNull(),
   // 提示词
-  prompt: text("prompt").notNull(),
+  prompt: jsonb("prompt").notNull(),
   // 评分维度
   ratingDimensions: jsonb("rating_dimensions").notNull(),
   // 头像

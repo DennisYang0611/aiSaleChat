@@ -19,3 +19,43 @@ Content-Type: application/json
     "email": "test@example.com",
     "password": "123456"
 }
+
+### 获取Agent
+GET {{host}}/agent
+
+
+### 获取单个Agent
+GET {{host}}/agent/1
+
+
+### 创建Agent
+POST {{host}}/agent
+Content-Type: application/json
+
+{
+  "name": "test",
+  "avatar": "https://lslkgpcf.cloud.sealos.io/logo.png",
+  "prompt": {
+    "scene": "你是一个专业的销售顾问,负责帮助用户选择合适的产品",
+    "userPurchasingPower": "中等消费能力,可以接受合理的价格范围",
+    "userConsumptionIntention": "有明确的购买意向,但需要专业建议",
+    "userConsumptionPhilosophy": "注重性价比,追求产品品质",
+    "agentPersonality": "友好专业,善于倾听,能够给出合理建议"
+  },
+  "ratingDimensions": {
+    "price": "价格",
+    "quality": "质量",
+    "service": "服务"
+  }
+}
+
+### 更新Agent
+PATCH {{host}}/agent/1
+Content-Type: application/json
+
+{
+    "name": "测ssss试"
+}
+
+### 删除Agent
+DELETE {{host}}/agent/1

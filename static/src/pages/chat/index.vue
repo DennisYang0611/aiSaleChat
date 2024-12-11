@@ -9,16 +9,16 @@
 		</view>
 
 		<!-- 聊天内容区域 -->
-		<scroll-view 
-			class="chat-content" 
-			scroll-y="true" 
+		<scroll-view
+			class="chat-content"
+			scroll-y="true"
 			:scroll-top="scrollTop"
 			:scroll-with-animation="true"
 			@scrolltoupper="loadMoreMessages"
 		>
 			<view class="message-list">
-				<view 
-					v-for="(message, index) in messages" 
+				<view
+					v-for="(message, index) in messages"
 					:key="index"
 					:class="['message-item', message.type === 'user' ? 'user' : 'assistant']"
 				>
@@ -41,7 +41,7 @@
 
 		<!-- 输入区域 -->
 		<view class="input-area">
-			<input 
+			<input
 				class="message-input"
 				type="text"
 				v-model="inputMessage"
@@ -83,20 +83,20 @@ export default Vue.extend({
 		},
 		handleSend() {
 			if (!this.inputMessage.trim() || this.isGenerating) return;
-			
+
 			// 添加用户消息
 			this.messages.push({
 				type: 'user',
 				content: this.inputMessage
 			});
-			
+
 			// 清空输入
 			const userMessage = this.inputMessage;
 			this.inputMessage = '';
-			
+
 			// 滚动到底部
 			this.scrollToBottom();
-			
+
 			// 模拟AI回复
 			this.isGenerating = true;
 			setTimeout(() => {
@@ -124,7 +124,7 @@ export default Vue.extend({
 			setTimeout(() => {
 				const query = uni.createSelectorQuery().in(this);
 				query.select('.message-list').boundingClientRect(data => {
-					this.scrollTop = data.height;
+					// this.scrollTop = data.height;
 				}).exec();
 			}, 100);
 		}
@@ -296,4 +296,4 @@ export default Vue.extend({
 	color: #fff;
 	font-size: 32rpx;
 }
-</style> 
+</style>
