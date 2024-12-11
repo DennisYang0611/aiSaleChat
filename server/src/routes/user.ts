@@ -1,11 +1,7 @@
 import { Hono } from "hono";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
-import { failRes, successRes } from "~/common/res";
-import bcrypt from "bcrypt";
-import { sign } from "hono/jwt";
+import { successRes } from "~/common/res";
 import { Users } from "~/db/schema";
-import { db, eq } from "~/db";
+import { db } from "~/db";
 
 const router = new Hono();
 

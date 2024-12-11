@@ -1,4 +1,4 @@
-# sales-training
+# static
 
 ## Project setup
 ```

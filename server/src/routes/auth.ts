@@ -6,7 +6,6 @@ import bcrypt from "bcrypt";
 import { sign } from "hono/jwt";
 import { db, eq } from "~/db";
 import { Users } from "~/db/schema";
-import console from "console";
 
 const router = new Hono();
 
