@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { failRes, listRes, successRes } from "~/common/res";
-import { Agents } from "~/db/schema";
+import { Agents, TrainingRecords } from "~/db/schema";
 import { db, eq } from "~/db";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";

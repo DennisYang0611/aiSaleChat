@@ -51,6 +51,7 @@
 				v-for="(agent, index) in agents" 
 				:key="index"
 				class="agent-item"
+				@tap="handleAgentClick(index)"
 			>
 				<view class="agent-content">
 					<view class="agent-header">
@@ -67,34 +68,33 @@
 							</view>
 						</view>
 					</view>
-					<view 
-						class="agent-prompt"
-						@tap="handleAgentClick(index)"
-					>{{ agent.prompt }}</view>
-					<view class="dimension-tags">
+					<view class="agent-prompt-wrap">
 						<view 
-							v-for="(dim, dimIndex) in agent.dimensions" 
-							:key="dimIndex"
-							class="dimension-tag"
+							class="agent-prompt"
+							@tap.stop="handlePromptClick(index)"
 						>
-							{{ dim.keyword }} {{ dim.score }}分
+							<text class="prompt-text">{{ agent.prompt }}</text>
+							<view class="prompt-expand" v-if="isPromptOverflow(agent.prompt)">
+								<text class="expand-icon">...</text>
+							</view>
+						</view>
+					</view>
+					<view class="agent-dimensions">
+						<view class="dimension-tags">
+							<view 
+								v-for="(dimension, dIndex) in agent.dimensions" 
+								:key="dIndex"
+								class="dimension-tag"
+							>
+								<text class="dimension-name">{{ dimension.keyword }}</text>
+								<text class="dimension-score">{{ dimension.score }}分</text>
+							</view>
 						</view>
 					</view>
 					<view class="agent-footer">
-						<view class="stat-tags">
-							<view class="stat-tag">
-								<text class="stat-icon iconfont icon-message"></text>
-								<text class="stat-text">0次对话</text>
-							</view>
-							<view class="stat-tag">
-								<text class="stat-icon iconfont icon-star"></text>
-								<text class="stat-text">0次评分</text>
-							</view>
-						</view>
-						<view class="start-btn" @tap.stop="handleStart(index)">
-							<text class="start-icon iconfont icon-play"></text>
+						<button class="start-btn" @tap.stop="handleStartChat(index)">
 							开始对话
-						</view>
+						</button>
 					</view>
 				</view>
 			</view>
@@ -158,8 +158,10 @@ export default Vue.extend({
 			});
 		},
 		handleAgentClick(index: number) {
-			// 可以跳转到详情页或开始对话
-			console.log('点击了Agent:', this.agents[index]);
+			// 跳转到成绩单页面
+			uni.navigateTo({
+				url: '/pages/records/index'
+			});
 		},
 		formatTime(timestamp: number): string {
 			const date = new Date(timestamp);
@@ -200,7 +202,7 @@ export default Vue.extend({
 				url: '/pages/user/info'
 			});
 		},
-		handleStart(index: number) {
+		handleStartChat(index: number) {
 			const agent = this.agents[index];
 			// 存储当前对话的 agent 数据
 			uni.setStorageSync('currentChatAgent', agent);
@@ -208,6 +210,9 @@ export default Vue.extend({
 			uni.navigateTo({
 				url: '/pages/chat/index'
 			});
+		},
+		isPromptOverflow(prompt: string): boolean {
+			return prompt.length > 100; // 可以根据实际需求调整长度
 		}
 	}
 });
@@ -382,6 +387,7 @@ export default Vue.extend({
 	overflow: hidden;
 	transition: all 0.3s ease;
 	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+	cursor: pointer;
 }
 
 .agent-item:active {
@@ -416,40 +422,113 @@ export default Vue.extend({
 	margin-top: 8rpx;
 }
 
-.agent-prompt {
-	font-size: 26rpx;
-	color: #666;
-	line-height: 1.6;
-	margin: 20rpx 0;
-	padding: 16rpx;
-	background: #f8fafc;
-	border-radius: 12rpx;
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	overflow: hidden;
-	cursor: pointer;
-	transition: opacity 0.3s ease;
+.agent-prompt-wrap {
+	margin: 24rpx 0;
 }
 
-.agent-prompt:active {
-	opacity: 0.7;
+.agent-prompt {
+	background: #f8f8f8;
+	border-radius: 12rpx;
+	padding: 20rpx;
+	position: relative;
+	line-height: 1.6;
+	min-height: 80rpx;
+}
+
+.prompt-text {
+	font-size: 28rpx;
+	color: #333;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.prompt-expand {
+	position: absolute;
+	right: 20rpx;
+	bottom: 20rpx;
+	background: #f8f8f8;
+	padding-left: 20rpx;
+}
+
+.expand-icon {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.agent-dimensions {
+	margin: 24rpx 0;
 }
 
 .dimension-tags {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12rpx;
-	margin: 20rpx 0;
 }
 
 .dimension-tag {
+	background: #fff;
+	border: 1px solid #eee;
+	border-radius: 30rpx;
+	padding: 8rpx 20rpx;
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+}
+
+.dimension-name {
+	font-size: 26rpx;
+	color: #333;
+}
+
+.dimension-score {
 	font-size: 24rpx;
 	color: #666;
-	background: #f8fafc;
-	padding: 8rpx 20rpx;
-	border-radius: 20rpx;
-	border: 1rpx solid #eee;
+}
+
+.agent-footer {
+	margin-top: 30rpx;
+	padding-top: 20rpx;
+	border-top: 1px solid #eee;
+	text-align: right;
+}
+
+.start-btn {
+	display: inline-flex;
+	height: 64rpx;
+	padding: 0 30rpx;
+	background: #333;
+	color: #fff;
+	font-size: 26rpx;
+	border-radius: 32rpx;
+}
+
+/* 响应式适配 */
+@media screen and (min-width: 768px) {
+	.agent-item {
+		max-width: 800rpx;
+		margin: 0 auto 30rpx;
+	}
+	
+	.prompt-text {
+		font-size: 30rpx;
+	}
+	
+	.dimension-tag {
+		padding: 10rpx 24rpx;
+	}
+	
+	.dimension-name {
+		font-size: 28rpx;
+	}
+	
+	.start-btn {
+		height: 72rpx;
+		font-size: 28rpx;
+		padding: 0 40rpx;
+	}
 }
 
 .empty-state {
@@ -506,59 +585,5 @@ export default Vue.extend({
 
 .action-icon {
 	font-size: 28rpx;
-}
-
-.agent-footer {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-top: 24rpx;
-	padding-top: 24rpx;
-	border-top: 2rpx solid #f8fafc;
-}
-
-.stat-tags {
-	display: flex;
-	gap: 20rpx;
-}
-
-.stat-tag {
-	display: flex;
-	align-items: center;
-	gap: 8rpx;
-	padding: 6rpx 12rpx;
-	background: #f8fafc;
-	border-radius: 16rpx;
-}
-
-.stat-icon {
-	font-size: 28rpx;
-	color: #666;
-}
-
-.stat-text {
-	font-size: 24rpx;
-	color: #666;
-}
-
-.start-btn {
-	padding: 12rpx 24rpx;
-	background: #333;
-	color: #fff;
-	font-size: 24rpx;
-	border-radius: 30rpx;
-	display: flex;
-	align-items: center;
-	gap: 8rpx;
-	transition: all 0.3s ease;
-}
-
-.start-btn:active {
-	transform: scale(0.95);
-	opacity: 0.9;
-}
-
-.start-icon {
-	font-size: 24rpx;
 }
 </style>

@@ -10,39 +10,39 @@
 			</view>
 			<text class="logo-text">销售对练系统</text>
 		</view>
-		
+
 		<view class="title-area">
 			<text class="title">One account</text>
 			<text class="subtitle">Many Possibilities</text>
 		</view>
-		
+
 		<view class="form-area">
-			<input 
-				class="input-box" 
-				type="text" 
+			<input
+				class="input-box"
+				type="text"
 				placeholder="Shawn Samson"
 				v-model="name"
 			/>
-			<input 
-				class="input-box" 
-				type="text" 
+			<input
+				class="input-box"
+				type="text"
 				placeholder="shawnsamson@gmail.com"
 				v-model="email"
 			/>
-			<input 
-				class="input-box" 
-				type="password" 
+			<input
+				class="input-box"
+				type="password"
 				placeholder="******"
 				v-model="password"
 			/>
-			<input 
-				class="input-box" 
-				type="password" 
+			<input
+				class="input-box"
+				type="password"
 				placeholder="******"
 				v-model="confirmPassword"
 			/>
 		</view>
-		
+
 		<view class="button-area">
 			<button class="signup-btn" @tap="handleSignUp">Sign Up</button>
 			<button class="google-btn" @tap="handleGoogleSignUp">
@@ -50,7 +50,7 @@
 				Continue with Google
 			</button>
 		</view>
-		
+
 		<view class="signin-area">
 			<text>Already have an account? </text>
 			<text class="signin-link" @tap="handleSignIn">Sign In</text>
@@ -60,6 +60,17 @@
 
 <script lang="ts">
 import Vue from 'vue';
+import { request } from '@/utils/request';
+
+interface RegisterResponse {
+	code: number;
+	message?: string;
+	user?: {
+		id: number;
+		email: string;
+		name: string;
+	}
+}
 
 export default Vue.extend({
 	data() {
@@ -71,12 +82,63 @@ export default Vue.extend({
 		}
 	},
 	methods: {
-		handleSignUp() {
-			// 处理注册逻辑
-			console.log('注册', this.name, this.email, this.password);
+		async handleSignUp() {
+			// 表单验证
+			if(!this.name || !this.email || !this.password || !this.confirmPassword) {
+				uni.showToast({
+					title: '请填写完整信息',
+					icon: 'none'
+				});
+				return;
+			}
+
+			if(this.password !== this.confirmPassword) {
+				uni.showToast({
+					title: '两次密码不一致',
+					icon: 'none'
+				});
+				return;
+			}
+
+			uni.showLoading({
+				title: '注册中...'
+			});
+
+			try {
+				const res = await request<RegisterResponse>({
+					url: '/auth/register',
+					method: 'POST',
+					data: {
+						username: this.name,
+						email: this.email,
+						password: this.password
+					}
+				});
+				if(res.code === 0) {
+					uni.showToast({
+						title: '注册成功',
+						icon: 'success',
+						duration: 1500
+					});
+
+					setTimeout(() => {
+						uni.navigateBack();
+					}, 1500);
+				} else {
+					const data = res as RegisterResponse;
+					throw new Error(data.message || '注册失败');
+				}
+			} catch(error) {
+				console.error('注册失败:', error);
+				uni.showToast({
+					title: (error as Error).message || '注册失败,请重试',
+					icon: 'none'
+				});
+			} finally {
+				uni.hideLoading();
+			}
 		},
 		handleGoogleSignUp() {
-			// 处理谷歌注册
 			console.log('谷歌注册');
 		},
 		handleSignIn() {
@@ -345,4 +407,4 @@ button::after {
     margin: 60rpx auto;
   }
 }
-</style> 
+</style>

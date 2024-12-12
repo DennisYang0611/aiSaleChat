@@ -7,6 +7,7 @@ import {
   boolean,
   jsonb,
   uuid,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // 定义许可证状态枚举
@@ -48,6 +49,7 @@ export const Agents = pgTable("agents", {
   name: varchar("name", { length: 255 }).notNull(),
   // 提示词
   prompt: jsonb("prompt").notNull(),
+  promptText: text("prompt_text"),
   // 评分维度
   ratingDimensions: jsonb("rating_dimensions").notNull(),
   // 头像
@@ -72,18 +74,21 @@ export const TrainingRecords = pgTable("training_records", {
       onUpdate: "cascade",
     })
     .notNull(),
+  // 关联的用户ID
+  userId: uuid("user_id")
+    .references(() => Users.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    })
+    .notNull(),
   // 训练开始时间
   trainingTime: timestamp("training_time").defaultNow().notNull(),
   // 训练结束时间
   trainingEndTime: timestamp("training_end_time"),
-  // 训练数据来源
-  trainingDataSource: text("training_data_source").notNull(),
   // 训练结果描述
   trainingResult: text("training_result"),
-
   // 评分
-  ratings: jsonb("ratings").notNull(),
-
+  ratings: jsonb("ratings").default({}).notNull(),
   // 添加训练状态字段
   status: varchar("status", { length: 50 }).default("pending").notNull(),
   // 创建和更新时间
@@ -122,3 +127,36 @@ export const Messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const UserAgents = pgTable(
+  "user_agents",
+  {
+    // 自动生成的唯一标识符
+    id: uuid("id").primaryKey().defaultRandom(),
+    // 用户ID
+    userId: uuid("user_id")
+      .references(() => Users.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      })
+      .notNull(),
+    // Agent ID
+    agentId: uuid("agent_id")
+      .references(() => Agents.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      })
+      .notNull(),
+    // 创建和更新时间
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      userAgentUnique: uniqueIndex("user_agent_unique").on(
+        table.userId,
+        table.agentId
+      ),
+    };
+  }
+);

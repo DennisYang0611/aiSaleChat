@@ -6,7 +6,7 @@ POST {{host}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "test@example.com",
+    "email": "test2@example.com",
     "password": "123456"
 }
 
@@ -48,6 +48,9 @@ Content-Type: application/json
   "creatorId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41",
   "name": "testxxx",
   "avatar": "https://lslkgpcf.cloud.sealos.io/logo.png",
+    "promptText": "角色名称：李佳\n\n角色背景：李佳是一名35岁的IT经理，性格开朗、积极向上，热爱运动和健康饮食。她曾在科技行业工作多年，感受到了工作的压力，因此更加注重健身和身体的健康。在健身房中，她常常是那个充满能量的人，激励周围的人参与各种锻炼。\n\n角色目标：寻找一款高品质的健身器材，提升在家锻炼的体验，同时咨询私教课程的信息。\n\n角色关系：与健身俱乐部的私教王教练关系较好，私下也会互相分享健身经验和营养知识。\n\n角色知识：对健身器材有一定的了解，熟悉营养补剂的功效，对健身计划的制定也有自己的见解。\n\n场景描述：午后3点，李佳正在高端健身俱乐部的展览区域，周围环境优雅而现代，墙壁上挂着各种有名的健身品牌的海报，明亮的灯光照射在器材上。俱乐部还设置了舒适的休息区，动感的音乐响起，给整个空间增添了活力。李佳在这里品尝着营养饮品，期待着找到合适的健身器材。\n\n场景中的关键物品/事件：健身器材展览，包括最新型的跑步机、智能健身器械和健身配件。私教课程的海报上贴满了试听课程的信息，特别吸引李佳的注意。\n\n示例对话/行为：\n- 当李佳看到展示的智能跑步机时，她兴奋地说：\"这个跑步机看起来真不错，它的智能功能一定能提升我的训练效果！我得试试这个。\"\n- 在旁边的咨询台，李佳向王教练询问：\"王教练，这款跑步机的性能如何？你觉得它适合我这种有一定基础的健身者吗？\"\n- 在决定购买前，李佳会仔细阅读器材的功能介绍，因为她希望每一笔投资都能带来价值感和良好的使用体验。\n\n进一步的指导：\n李佳的目标是提升自己在健身方面的效率与乐趣，她会积极咨询和参与各种课程，以确保投资的健身器材能最大程度地帮助到自己。",
+
+
   "prompt": {
     "scene": "你是一个专业的销售顾问,负责帮助用户选择合适的产品",
     "userPurchasingPower": "中等消费能力,可以接受合理的价格范围",
@@ -56,14 +59,15 @@ Content-Type: application/json
     "agentPersonality": "友好专业,善于倾听,能够给出合理建议"
   },
   "ratingDimensions": {
-    "price": "价格",
-    "quality": "质量",
-    "service": "服务"
+    "沟通技巧": 25,
+    "产品知识": 25,
+    "服务态度": 25,
+    "专业能力": 25
   }
 }
 
 ### 更新Agent
-PATCH {{host}}/agent/0ab2ead0-7e6e-4804-b623-5ddbe12a1e41
+PATCH {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
 Content-Type: application/json
 
 {
@@ -71,4 +75,41 @@ Content-Type: application/json
 }
 
 ### 删除Agent
-DELETE {{host}}/agent/1
+DELETE {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
+
+
+### 添加训练记录
+POST {{host}}/agent/training
+Content-Type: application/json
+
+{
+    "agentId": "1821625d-2ad2-42d3-a55d-dbcce8de30a5",
+    "userId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41"
+}
+
+### 获取训练记录
+GET {{host}}/agent/training
+
+
+### 获取用户关联的agent
+GET {{host}}/user/agents?userId=fe9d6b54-40d7-4d56-a3b1-50c21feeeb41&page=1&pageSize=10
+
+
+### 给当前用户关联agent
+POST {{host}}/user/agent
+Content-Type: application/json
+
+{
+    "agentId": "1821625d-2ad2-42d3-a55d-dbcce8de30a5",
+    "userId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41"
+}
+
+
+
+
+
+
+
+
+
+

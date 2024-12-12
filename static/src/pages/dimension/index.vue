@@ -113,6 +113,28 @@ interface Dimension {
 	score: number;
 }
 
+interface AIMessage {
+	role: string;
+	content: string;
+}
+
+interface AIChoice {
+	message: AIMessage;
+	finish_reason: string;
+	index: number;
+}
+
+interface AIResponse {
+	id: string;
+	model: string;
+	choices: AIChoice[];
+	usage: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+	};
+}
+
 export default Vue.extend({
 	data() {
 		return {
@@ -199,22 +221,13 @@ export default Vue.extend({
 			this.dimensions.splice(index, 1);
 		},
 		async handleAIGenerate() {
-			if (!this.promptText) {
-				uni.showToast({
-					title: '未获取到提示词',
-					icon: 'none'
-				});
-				return;
-			}
-
 			this.isLoading = true;
 			try {
 				const response = await uni.request({
 					url: 'https://api.fastgpt.in/api/v1/chat/completions',
 					method: 'POST',
 					header: {
-						'Authorization': 'Bearer fastgpt-fTurmEfEHmLmo9NMOPCbF5YzXUspyzd1DVVNhT1q9J8ySAhsP1IY',
-						'Content-Type': 'application/json'
+						'Authorization': 'Bearer fastgpt-ivclLFAcNWNyOVNvvm8K9LjcoajA5sH8roTienpWDm9pbsKyiSk8aoHXnH7GhV'
 					},
 					data: {
 						chatId: Math.random().toString(36).substring(7),
@@ -236,63 +249,40 @@ export default Vue.extend({
 				});
 
 				if (response.statusCode === 200 && response.data) {
-					const aiResponse = response.data;
+					const aiResponse = response.data as AIResponse;
 					if (aiResponse.choices && aiResponse.choices[0]?.message?.content) {
 						try {
-							// 尝试解析返回的JSON字符串
 							const jsonStr = aiResponse.choices[0].message.content;
 							// 查找字符串中的第一个 [ 和最后一个 ] 之间的内容
 							const jsonMatch = jsonStr.match(/\[.*\]/s);
 							if (jsonMatch) {
-								const dimensions = JSON.parse(jsonMatch[0]);
+								const dimensionsData = JSON.parse(jsonMatch[0]);
+								this.dimensions = dimensionsData.map((item: any) => ({
+									keyword: item.name || '',
+									score: item.score || 0
+								}));
 								
-								// 验证数据格式
-								if (Array.isArray(dimensions) && dimensions.length > 0) {
-									// 验证总分不超过100
-									const totalScore = dimensions.reduce((sum, dim) => sum + (Number(dim.score) || 0), 0);
-									if (totalScore <= 100) {
-										this.dimensions = dimensions.map(dim => ({
-											keyword: dim.keyword,
-											score: Number(dim.score)
-										}));
-										uni.showToast({
-											title: '生成成功',
-											icon: 'success'
-										});
-									} else {
-										throw new Error('总分超过100');
-									}
-								} else {
-									throw new Error('数据格式错误');
-								}
+								uni.showToast({
+									title: 'AI生成成功',
+									icon: 'success'
+								});
 							} else {
-								throw new Error('未找到有效的JSON数据');
+								throw new Error('无法解析AI返回的数据');
 							}
 						} catch (parseError) {
-							console.error('解析AI返回数据失败:', parseError);
-							// 如果解析失败，使用默认维度
-							this.dimensions = [
-								{ keyword: '语言表达', score: 40 },
-								{ keyword: '专业知识', score: 35 },
-								{ keyword: '应变能力', score: 25 }
-							];
-							uni.showToast({
-								title: '使用默认维度',
-								icon: 'none'
-							});
+							console.error('解析AI响应失败:', parseError);
+							throw new Error('解析AI返回数据失败');
 						}
 					} else {
-						console.error('AI返回数据格式错误:', aiResponse);
-						uni.showToast({
-							title: '生成失败，使用默认维度',
-							icon: 'none'
-						});
+						throw new Error('AI返回数据格式错误');
 					}
+				} else {
+					throw new Error('AI请求失败');
 				}
 			} catch (error) {
 				console.error('AI生成失败:', error);
 				uni.showToast({
-					title: '生成失败，请重试',
+					title: (error as Error).message || 'AI生成失败，请重试',
 					icon: 'none'
 				});
 			} finally {

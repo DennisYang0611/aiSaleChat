@@ -56,6 +56,17 @@
 
 <script lang="ts">
 import Vue from 'vue';
+import { request } from '@/utils/request';
+
+interface LoginResponse {
+	token: string;
+	message?: string;
+	user?: {
+		id: number;
+		email: string;
+		name: string;
+	}
+}
 
 export default Vue.extend({
 	data() {
@@ -69,38 +80,57 @@ export default Vue.extend({
 		toggleRemember() {
 			this.rememberMe = !this.rememberMe;
 		},
-		handleSignIn() {
-			// 显示加载中
+		async handleSignIn() {
+			if(!this.email || !this.password) {
+				uni.showToast({
+					title: '请输入邮箱和密码',
+					icon: 'none'
+				});
+				return;
+			}
+
 			uni.showLoading({
 				title: '登录中...'
 			});
 			
-			// 模拟登录过程
-			setTimeout(() => {
-				// 隐藏加载
-				uni.hideLoading();
+			try {
+				const res = await request<LoginResponse>({
+					url: '/auth/login',
+					method: 'POST',
+					data: {
+						email: this.email,
+						password: this.password
+					}
+				});
+
+				uni.setStorageSync('token', res.token);
 				
-				// 显示登录成功提示
 				uni.showToast({
 					title: '登录成功',
 					icon: 'success',
 					duration: 1500
 				});
 				
-				// 延迟跳转到首页
 				setTimeout(() => {
 					uni.reLaunch({
 						url: '/pages/index/index'
 					});
 				}, 1500);
-			}, 1000);
+			} catch(error) {
+				console.error('登录失败:', error);
+				uni.showToast({
+					title: (error as Error).message || '登录失败,请重试',
+					icon: 'none',
+					duration: 1500
+				});
+			} finally {
+				uni.hideLoading();
+			}
 		},
 		handleGoogleSignIn() {
-			// 处理谷歌登录
 			console.log('谷歌登录');
 		},
 		handleForgot() {
-			// 处理忘记密码
 			console.log('忘记密码');
 		},
 		handleSignUp() {

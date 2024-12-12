@@ -89,6 +89,22 @@
 			"style": {
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/score/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#ffffff"
+			}
+		},
+		{
+			"path": "pages/records/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#ffffff"
+			}
 		}
 	],
 	"globalStyle": {
