@@ -127,7 +127,14 @@ interface AIChoice {
 interface AIResponse {
 	id: string;
 	model: string;
-	choices: AIChoice[];
+	choices: Array<{
+		message: {
+			role: string;
+			content: string;
+		};
+		finish_reason: string;
+		index: number;
+	}>;
 	usage: {
 		prompt_tokens: number;
 		completion_tokens: number;
@@ -221,68 +228,87 @@ export default Vue.extend({
 			this.dimensions.splice(index, 1);
 		},
 		async handleAIGenerate() {
+			if (!this.promptText) {
+				uni.showToast({
+					title: '未获取到提示词',
+					icon: 'none'
+				});
+				return;
+			}
+
 			this.isLoading = true;
+
 			try {
 				const response = await uni.request({
 					url: 'https://api.fastgpt.in/api/v1/chat/completions',
 					method: 'POST',
 					header: {
-						'Authorization': 'Bearer fastgpt-ivclLFAcNWNyOVNvvm8K9LjcoajA5sH8roTienpWDm9pbsKyiSk8aoHXnH7GhV'
+						'Authorization': 'Bearer fastgpt-ivclLFAcNWNyOVNvvm8K9LjcoajA5sH8roTienpWDm9pbsKyiSk8aoHXnH7GhV',
+						'Content-Type': 'application/json'
 					},
 					data: {
-						chatId: Math.random().toString(36).substring(7),
-						stream: false,
-						detail: false,
-						responseChatItemId: 'my_responseChatItemId',
-						variables: {
-							prompt: this.promptText
-						},
 						messages: [
 							{
+								role: 'system',
+								content: '你是一个销售培训专家。请根据提供的销售场景提示词，生成5个评分维度和对应的分值。分值总和必须等于100。返回格式为JSON数组，每个对象包含keyword和score字段。示例：[{"keyword":"产品知识","score":25},{"keyword":"沟通技巧","score":30}]'
+							},
+							{
 								role: 'user',
-								content: `根据以下提示词，生成3-5个评分维度，每个维度包含名称和分值(总分不超过100)，返回JSON数组格式：
-									提示词：${this.promptText}
-									返回格式示例：[{"keyword":"维度1","score":30},{"keyword":"维度2","score":40}]`
+								content: `请根据以下销售场景生成评分维度：${this.promptText}`
 							}
 						]
 					}
 				});
 
-				if (response.statusCode === 200 && response.data) {
-					const aiResponse = response.data as AIResponse;
-					if (aiResponse.choices && aiResponse.choices[0]?.message?.content) {
-						try {
-							const jsonStr = aiResponse.choices[0].message.content;
-							// 查找字符串中的第一个 [ 和最后一个 ] 之间的内容
-							const jsonMatch = jsonStr.match(/\[.*\]/s);
-							if (jsonMatch) {
-								const dimensionsData = JSON.parse(jsonMatch[0]);
-								this.dimensions = dimensionsData.map((item: any) => ({
-									keyword: item.name || '',
-									score: item.score || 0
-								}));
-								
-								uni.showToast({
-									title: 'AI生成成功',
-									icon: 'success'
-								});
-							} else {
-								throw new Error('无法解析AI返回的数据');
-							}
-						} catch (parseError) {
-							console.error('解析AI响应失败:', parseError);
-							throw new Error('解析AI返回数据失败');
-						}
-					} else {
-						throw new Error('AI返回数据格式错误');
-					}
-				} else {
-					throw new Error('AI请求失败');
+				// 类型断言确保 response.data 是 AIResponse 类型
+				const aiResponse = response.data as AIResponse;
+				if (!aiResponse.choices?.[0]?.message?.content) {
+					throw new Error('AI返回数据格式错误');
 				}
+
+				const content = aiResponse.choices[0].message.content;
+				let dimensions = [];
+				try {
+					// 尝试直接解析
+					dimensions = JSON.parse(content);
+				} catch (e) {
+					// 如果直接解析失败，尝试从文本中提取JSON部分
+					const match = content.match(/\[[\s\S]*\]/);
+					if (match) {
+						dimensions = JSON.parse(match[0]);
+					} else {
+						throw new Error('无法解析AI返回的维度数据');
+					}
+				}
+
+				// 验证数据格式
+				if (!Array.isArray(dimensions) || 
+					!dimensions.every(d => typeof d.keyword === 'string' && typeof d.score === 'number')) {
+					throw new Error('AI返回的数据格式不正确');
+				}
+
+				// 更新维度列表
+				this.dimensions = dimensions;
+
+				// 验证总分
+				const total = dimensions.reduce((sum, d) => sum + d.score, 0);
+				if (total !== 100) {
+					uni.showToast({
+						title: 'AI生成的分值总和不等于100，已自动调整',
+						icon: 'none'
+					});
+					// 自动调整分值
+					const factor = 100 / total;
+					this.dimensions = dimensions.map(d => ({
+						...d,
+						score: Math.round(d.score * factor)
+					}));
+				}
+
 			} catch (error) {
-				console.error('AI生成失败:', error);
+				console.error('AI生成维度失败:', error);
 				uni.showToast({
-					title: (error as Error).message || 'AI生成失败，请重试',
+					title: error instanceof Error ? error.message : 'AI生成失败，请重试',
 					icon: 'none'
 				});
 			} finally {

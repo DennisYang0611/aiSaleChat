@@ -28,6 +28,11 @@
 					</view>
 					<view class="message-content">
 						<text>{{ message.content }}</text>
+						<view class="audio-controls" v-if="message.type === 'assistant' && message.audioUrl">
+							<view class="play-btn" @tap="playAudio(message.audioUrl)">
+								<text class="iconfont icon-play"></text>
+							</view>
+						</view>
 						<view class="share-btn" v-if="message.type === 'assistant'" @tap="handleShare(message)">
 							<text class="share-icon">↗</text>
 						</view>
@@ -41,9 +46,17 @@
 
 		<!-- 输入区域 -->
 		<view class="input-area">
-			<view class="voice-btn" @tap="toggleRecording">
-				<view class="voice-icon" :class="{ recording: isRecording }">
-					<text class="iconfont" :class="isRecording ? 'icon-stop' : 'icon-mic'"></text>
+			<view class="voice-btn" @tap="toggleRecording" :class="{ 'recording': isRecording }">
+				<view class="voice-icon">
+					<svg class="mic-svg" viewBox="0 0 24 24" width="24" height="24">
+						<path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+						<path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+					</svg>
+				</view>
+				<view class="recording-waves" v-if="isRecording">
+					<view class="wave"></view>
+					<view class="wave"></view>
+					<view class="wave"></view>
 				</view>
 			</view>
 			<input
@@ -64,7 +77,10 @@
 
 		<!-- 录音提示 -->
 		<view class="recording-tip" v-if="isRecording">
-			<view class="recording-wave"></view>
+			<view class="recording-status">
+				<view class="recording-dot"></view>
+				<text class="recording-time">{{ recordingTime }}s</text>
+			</view>
 			<text class="recording-text">正在录音...</text>
 			<text class="recording-cancel" @tap="cancelRecording">取消</text>
 		</view>
@@ -75,6 +91,42 @@
 import Vue from 'vue';
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { API_BASE_URL } from '@/config';
+
+interface ChatMessage {
+	type: 'user' | 'assistant';
+	content: string;
+	audioUrl?: string;
+}
+
+interface AIResponse {
+	choices: Array<{
+		message: {
+			content: string;
+			role: string;
+		};
+		finish_reason: string;
+		index: number;
+	}>;
+}
+
+interface AgentData {
+	prompt: string;
+	dimensions: Array<{
+		keyword: string;
+		score: number;
+	}>;
+}
+
+interface PageInstance {
+	options?: {
+		id?: string;
+	};
+	$page?: {
+		options?: {
+			id?: string;
+		};
+	};
+}
 
 // 录音相关工具函数
 const initMediaRecorder = async () => {
@@ -88,18 +140,16 @@ const initMediaRecorder = async () => {
 	}
 };
 
+// 定义 RecorderManager 类型
+type RecorderManager = UniApp.RecorderManager;
+
 export default Vue.extend({
 	components: {
 		DefaultAvatar
 	},
 	data() {
 		return {
-			messages: [
-				{
-					type: 'assistant',
-						content: 'Hello! how may I help you today?'
-				}
-			],
+			messages: [] as ChatMessage[],
 			inputMessage: '',
 			scrollTop: 0,
 			isGenerating: false,
@@ -107,29 +157,77 @@ export default Vue.extend({
 			mediaRecorder: null as MediaRecorder | null,
 			audioChunks: [] as Blob[],
 			recordStartTime: 0,
-			hasRecordPermission: false
+			hasRecordPermission: false,
+			recorderManager: null as RecorderManager | null,
+			recordingTime: 0,
+			recordingTimer: null as number | null,
+			chatId: '',
+			agentData: null as AgentData | null,
+			speechSynthesis: window.speechSynthesis,
+		}
+	},
+	async onLoad(options: any) {
+		try {
+			// 解码并解析参数
+			const prompt = decodeURIComponent(options.prompt || '');
+			const dimensions = JSON.parse(decodeURIComponent(options.dimensions || '[]'));
+			
+			console.log('Received data:', { prompt, dimensions }); // 调试日志
+			
+			// 保存数据
+			this.agentData = {
+				prompt,
+				dimensions
+			};
+			
+			if (!prompt) {
+				throw new Error('未找到提示词');
+			}
+			
+			// 初始化 chatId
+			this.chatId = Math.random().toString(36).substring(7);
+			
+		} catch (error) {
+			console.error('初始化失败:', error);
+			uni.showToast({
+				title: error instanceof Error ? error.message : '初始化失败',
+				icon: 'none'
+			});
+			setTimeout(() => {
+				uni.navigateBack();
+			}, 1500);
 		}
 	},
 	async mounted() {
-		// 在 Web 端初始化录音
+		// Web 端初始化录音
 		if (process.env.VUE_APP_PLATFORM === 'h5') {
 			try {
 				this.mediaRecorder = await initMediaRecorder();
-				this.hasRecordPermission = true;
 				
-				// 监听录音数据
+				// 添加录音事件监听
 				this.mediaRecorder.ondataavailable = (event) => {
 					if (event.data.size > 0) {
 						this.audioChunks.push(event.data);
 					}
 				};
 				
-				// 监听录音停止
 				this.mediaRecorder.onstop = async () => {
+					const duration = Date.now() - this.recordStartTime;
+					if (duration < 1000) {
+						uni.showToast({
+							title: '录音时间太短',
+							icon: 'none'
+						});
+						this.audioChunks = [];
+						return;
+					}
+					
 					const audioBlob = new Blob(this.audioChunks, { type: 'audio/mp3' });
 					await this.uploadAudioBlob(audioBlob);
 					this.audioChunks = [];
 				};
+				
+				this.hasRecordPermission = true;
 			} catch (error) {
 				console.error('初始化录音失败:', error);
 				this.hasRecordPermission = false;
@@ -137,15 +235,30 @@ export default Vue.extend({
 		} else {
 			// 初始化录音管理器 (非 Web 端)
 			this.recorderManager = uni.getRecorderManager();
-			// ... 其他初始化代码保持不变
+			
+			// 添加录音事件监听
+			if (this.recorderManager) {
+				this.recorderManager.onStop((res) => {
+					this.uploadAudio(res.tempFilePath);
+				});
+				
+				this.recorderManager.onError((res) => {
+					console.error('录音失败:', res);
+					uni.showToast({
+						title: '录音失败',
+						icon: 'none'
+					});
+					this.isRecording = false;
+				});
+			}
 		}
 	},
 	methods: {
 		handleBack() {
 			uni.navigateBack();
 		},
-		handleSend() {
-			if (!this.inputMessage && !this.isRecording) return;
+		async handleSend() {
+			if ((!this.inputMessage && !this.isRecording) || !this.agentData) return;
 
 			// 添加用户消息
 			this.messages.push({
@@ -160,16 +273,99 @@ export default Vue.extend({
 			// 滚动到底部
 			this.scrollToBottom();
 
-			// 模拟AI回复
+			// 发送到 FastGPT
 			this.isGenerating = true;
-			setTimeout(() => {
+			await this.sendToFastGPT(userMessage);
+			this.isGenerating = false;
+			this.scrollToBottom();
+		},
+		async sendToFastGPT(content: string, isSystemPrompt = false) {
+			try {
+				// 先添加一个空的 AI 回复消息
+				const messageIndex = this.messages.length;
 				this.messages.push({
 					type: 'assistant',
-					content: `This is a response to: ${userMessage}`
+					content: ''
 				});
-				this.isGenerating = false;
-				this.scrollToBottom();
-			}, 1000);
+
+				uni.request({
+					url: 'https://api.fastgpt.in/api/v1/chat/completions',
+					method: 'POST',
+					header: {
+						'Authorization': 'Bearer fastgpt-ufjwtYs5kN2WdIiEqM7io4byhAe2HoB9wOuOEAF5hnNcxqH5ZYxITqEjum4K5FD',
+						'Content-Type': 'application/json'
+					},
+					data: {
+						chatId: this.chatId,
+						stream: true,
+						detail: false,
+						responseChatItemId: 'my_responseChatItemId',
+						variables: {
+							prompt: this.agentData?.prompt || ''
+						},
+						messages: [
+							...(isSystemPrompt ? [{
+								role: 'system',
+								content: `你是一个销售培训助手。请根据以下提示词进行对话：${this.agentData?.prompt || ''}`
+							}] : []),
+							{
+								role: 'user',
+								content
+							}
+						]
+					},
+					enableChunked: true,
+					enableStream: true,
+					responseType: 'text',
+					success: async (res) => {
+						let fullContent = '';
+						const reader = res.data as any;
+						
+						reader.split('\n').forEach((line: string) => {
+							if (line.startsWith('data: ')) {
+								try {
+									if (line.includes('[DONE]')) {
+										return;
+									}
+									const data = JSON.parse(line.slice(6));
+									if (data.choices && data.choices[0]?.delta?.content) {
+										const content = data.choices[0].delta.content;
+										fullContent += content;
+										// 更新消息内容
+										this.messages[messageIndex].content = fullContent;
+									}
+								} catch (e) {
+									if (!line.includes('[DONE]')) {
+										console.error('Parse chunk error:', e, line);
+									}
+								}
+							}
+						});
+
+						// 生成完成后，播放语音
+						if (fullContent) {
+							try {
+								await this.generateSpeech(fullContent);
+							} catch (error) {
+								console.error('生成语音失败:', error);
+							}
+						}
+					},
+					fail: (err) => {
+						console.error('FastGPT 请求失败:', err);
+						uni.showToast({
+							title: '对话失败，请重试',
+							icon: 'none'
+						});
+					}
+				});
+			} catch (error) {
+				console.error('FastGPT 请求失败:', error);
+				uni.showToast({
+					title: '对话失败，请重试',
+						icon: 'none'
+				});
+			}
 		},
 		handleStop() {
 			this.isGenerating = false;
@@ -191,60 +387,84 @@ export default Vue.extend({
 				}).exec();
 			}, 100);
 		},
-		async toggleRecording() {
-			// Web 端录音处理
+		async checkRecordPermission() {
 			if (process.env.VUE_APP_PLATFORM === 'h5') {
-				if (!this.mediaRecorder) {
-					try {
-						this.mediaRecorder = await initMediaRecorder();
-						this.hasRecordPermission = true;
-					} catch (error) {
-						uni.showToast({
-							title: '无法访问麦克风',
-							icon: 'none'
-						});
-						return;
-					}
+				try {
+					await navigator.mediaDevices.getUserMedia({ audio: true });
+					this.hasRecordPermission = true;
+				} catch (error) {
+					console.error('获取麦克风权限失败:', error);
+					this.hasRecordPermission = false;
+					uni.showToast({
+						title: '请允许使用麦克风',
+						icon: 'none'
+					});
 				}
+			}
+		},
+		async toggleRecording() {
+			// 检查权限
+			if (!this.hasRecordPermission) {
+				await this.checkRecordPermission();
+				if (!this.hasRecordPermission) return;
+			}
 
-				if (this.isRecording) {
-					// 停止录音
-					this.mediaRecorder.stop();
-					this.isRecording = false;
-					
-					const duration = Date.now() - this.recordStartTime;
-					if (duration < 1000) {
-						uni.showToast({
-							title: '录音时间太短',
-							icon: 'none'
-						});
-						this.audioChunks = [];
-						return;
+			if (this.isRecording) {
+				// 停止录音
+				if (process.env.VUE_APP_PLATFORM === 'h5') {
+					if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+						this.mediaRecorder.stop();
 					}
 				} else {
-					// 开始录音
-					this.audioChunks = [];
-					this.isRecording = true;
-					this.recordStartTime = Date.now();
-					this.mediaRecorder.start();
+					if (this.recorderManager) {
+						this.recorderManager.stop();
+					}
 				}
-				return;
+				if (this.recordingTimer) {
+					clearInterval(this.recordingTimer);
+					this.recordingTimer = null;
+				}
+			} else {
+				// 开始录音
+				this.audioChunks = [];
+				if (process.env.VUE_APP_PLATFORM === 'h5') {
+					if (this.mediaRecorder) {
+						this.mediaRecorder.start();
+						this.recordStartTime = Date.now();
+					}
+				} else {
+					if (this.recorderManager) {
+						this.recorderManager.start({
+							duration: 60000,
+							sampleRate: 16000,
+							numberOfChannels: 1,
+							encodeBitRate: 48000,
+							format: 'mp3'
+						});
+					}
+				}
+				this.recordingTime = 0;
+				this.recordingTimer = setInterval(() => {
+					this.recordingTime++;
+					// 60秒后自动停止
+					if (this.recordingTime >= 60) {
+						this.toggleRecording();
+					}
+				}, 1000);
 			}
-
-			// 非 Web 端录音处理
-			if (!this.hasRecordPermission) {
-				const granted = await this.requestRecordPermission();
-				if (!granted) return;
-			}
+			
+			this.isRecording = !this.isRecording;
 		},
 		cancelRecording() {
 			if (process.env.VUE_APP_PLATFORM === 'h5') {
-				if (this.mediaRecorder && this.isRecording) {
+				if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
 					this.mediaRecorder.stop();
 					this.audioChunks = [];
 				}
 			} else {
-				this.recorderManager.stop();
+				if (this.recorderManager) {
+					this.recorderManager.stop();
+				}
 			}
 			
 			this.isRecording = false;
@@ -252,6 +472,11 @@ export default Vue.extend({
 				title: '已取消录音',
 				icon: 'none'
 			});
+			if (this.recordingTimer) {
+				clearInterval(this.recordingTimer);
+				this.recordingTimer = null;
+			}
+			this.recordingTime = 0;
 		},
 		async uploadAudioBlob(audioBlob: Blob) {
 			try {
@@ -263,7 +488,7 @@ export default Vue.extend({
 				formData.append('model', 'whisper-1');
 				
 				// 发送请求
-				const response = await fetch(`${API_BASE_URL}/v1/audio/transcriptions`, {
+				const response = await fetch('http://api.sealos.vip/v1/audio/transcriptions', {
 					method: 'POST',
 					headers: {
 						'Authorization': 'Bearer sk-wNzf1gHWXMWK9BFD85307f6587D14b0fA838Ca17A4858561'
@@ -273,28 +498,19 @@ export default Vue.extend({
 				
 				if (response.ok) {
 					const data = await response.json();
-					this.inputMessage = data.text;
+					this.inputMessage = data.text || '';
 					this.handleSend();
 				} else {
 					throw new Error('语音识别失败');
 				}
 			} catch (error) {
+				console.error('语音识别失败:', error);
 				uni.showToast({
 					title: '语音识别失败',
 					icon: 'none'
 				});
 			} finally {
 				uni.hideLoading();
-			}
-		},
-		async checkRecordPermission() {
-			try {
-				const res = await uni.authorize({
-					scope: 'scope.record'
-				});
-				this.hasRecordPermission = true;
-			} catch (error) {
-				this.hasRecordPermission = false;
 			}
 		},
 		async requestRecordPermission() {
@@ -315,6 +531,97 @@ export default Vue.extend({
 					}
 				});
 				return false;
+			}
+		},
+		async uploadAudio(tempFilePath: string) {
+			try {
+				uni.showLoading({ title: '识别中...' });
+				
+				const uploadResult = await uni.uploadFile({
+					url: 'http://api.sealos.vip/v1/audio/transcriptions',
+					filePath: tempFilePath,
+					name: 'file',
+					header: {
+						'Authorization': 'Bearer sk-wNzf1gHWXMWK9BFD85307f6587D14b0fA838Ca17A4858561'
+					},
+					formData: {
+						model: 'whisper-1'
+					}
+				});
+				
+				if (uploadResult.statusCode === 200) {
+					const data = JSON.parse(uploadResult.data);
+					this.inputMessage = data.text || '';
+					this.handleSend();
+				} else {
+					throw new Error('语音识别失败');
+				}
+			} catch (error) {
+				console.error('语音上传失败:', error);
+				uni.showToast({
+					title: '语音识别失败',
+					icon: 'none'
+				});
+			} finally {
+				uni.hideLoading();
+			}
+		},
+		async retryWithDelay(fn: () => Promise<any>, retries = 3, delay = 1000): Promise<any> {
+			try {
+				return await fn();
+			} catch (error) {
+				if (retries > 0) {
+					await new Promise(resolve => setTimeout(resolve, delay));
+					return this.retryWithDelay(fn, retries - 1, delay);
+				}
+				throw error;
+			}
+		},
+		async generateSpeech(text: string): Promise<void> {
+			try {
+				const response = await uni.request({
+					url: 'http://api.sealos.vip/v1/audio/speech',
+					method: 'POST',
+					header: {
+						'Authorization': 'Bearer sk-wNzf1gHWXMWK9BFD85307f6587D14b0fA838Ca17A4858561',
+						'Content-Type': 'application/json'
+					},
+					data: {
+						model: "tts-1",
+						voice: "nova",
+						input: text
+					},
+					responseType: 'arraybuffer'
+				});
+				
+				if (response.statusCode === 200 && response.data) {
+					// 创建音频上下文
+					const audioContext = uni.createInnerAudioContext();
+					
+					// 将二进制数据转换为 Base64
+					const base64 = uni.arrayBufferToBase64(response.data as ArrayBuffer);
+					const audioUrl = `data:audio/mp3;base64,${base64}`;
+					
+					// 设置音频源并播放
+					audioContext.src = audioUrl;
+					audioContext.autoplay = true;
+					
+					// 监听播放完成
+					audioContext.onEnded(() => {
+						audioContext.destroy();
+					});
+					
+					// 监听错误
+					audioContext.onError((err) => {
+						console.error('播放音频失败:', err);
+						audioContext.destroy();
+					});
+				} else {
+					throw new Error('语音生成失败');
+				}
+			} catch (error) {
+				console.error('语音生成失败:', error);
+				throw error;
 			}
 		}
 	}
@@ -480,29 +787,139 @@ export default Vue.extend({
 }
 
 .voice-btn {
-	width: 64rpx;
-	height: 64rpx;
+	width: 80rpx;
+	height: 80rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	background: #f5f5f5;
+	border-radius: 50%;
+	transition: all 0.3s ease;
 	margin-right: 20rpx;
 }
 
+.voice-btn.recording {
+	background: #ff6b00;
+}
+
 .voice-icon {
+	position: relative;
 	width: 48rpx;
 	height: 48rpx;
-	border-radius: 24rpx;
-	background: #f5f5f5;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: all 0.3s ease;
 }
 
-.voice-icon.recording {
+.mic-svg {
+	width: 32rpx;
+	height: 32rpx;
+	fill: #666;
+	transition: fill 0.3s ease;
+}
+
+.voice-btn.recording .mic-svg {
+	fill: #fff;
+}
+
+.recording-waves {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.wave {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border: 2rpx solid #fff;
+	border-radius: 50%;
+	animation: wave-animation 1.5s infinite;
+	opacity: 0;
+}
+
+.wave:nth-child(2) {
+	animation-delay: 0.5s;
+}
+
+.wave:nth-child(3) {
+	animation-delay: 1s;
+}
+
+@keyframes wave-animation {
+	0% {
+		transform: scale(1);
+		opacity: 0.8;
+	}
+	100% {
+		transform: scale(2);
+		opacity: 0;
+	}
+}
+
+.recording-tip {
+	position: fixed;
+	bottom: 200rpx;
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(0, 0, 0, 0.7);
+	padding: 20rpx 40rpx;
+	border-radius: 16rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12rpx;
+}
+
+.recording-status {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+}
+
+.recording-dot {
+	width: 16rpx;
+	height: 16rpx;
 	background: #ff6b00;
+	border-radius: 50%;
+	animation: pulse 1s infinite;
+}
+
+.recording-time {
+	font-size: 28rpx;
 	color: #fff;
-	transform: scale(1.1);
+}
+
+.recording-text {
+	font-size: 28rpx;
+	color: #fff;
+}
+
+.recording-cancel {
+	font-size: 28rpx;
+	color: #ff6b00;
+	padding: 8rpx 20rpx;
+	border-radius: 8rpx;
+}
+
+.recording-cancel:active {
+	opacity: 0.8;
+	background: rgba(255, 107, 0, 0.1);
+}
+
+@keyframes pulse {
+	0% {
+		transform: scale(0.8);
+		opacity: 0.5;
+	}
+	50% {
+		transform: scale(1.2);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(0.8);
+		opacity: 0.5;
+	}
 }
 
 .message-input {
@@ -531,65 +948,24 @@ export default Vue.extend({
 	opacity: 0.5;
 }
 
-.recording-tip {
-	position: fixed;
-	bottom: 200rpx;
-	left: 50%;
-	transform: translateX(-50%);
-	background: rgba(0, 0, 0, 0.7);
-	padding: 30rpx 60rpx;
-	border-radius: 20rpx;
+.audio-controls {
+	margin-top: 12rpx;
 	display: flex;
-	flex-direction: column;
 	align-items: center;
+	gap: 12rpx;
 }
 
-.recording-wave {
-	width: 80rpx;
-	height: 80rpx;
+.play-btn {
+	width: 48rpx;
+	height: 48rpx;
+	background: rgba(0, 0, 0, 0.1);
 	border-radius: 50%;
-	background: #ff6b00;
-	margin-bottom: 20rpx;
-	animation: wave 1s ease-in-out infinite;
-	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.recording-wave::after {
-	content: '';
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	width: 40rpx;
-	height: 40rpx;
-	background: #fff;
-	border-radius: 50%;
-}
-
-.recording-text {
-	color: #fff;
-	font-size: 28rpx;
-	margin-bottom: 16rpx;
-}
-
-.recording-cancel {
-	color: #ff6b00;
-	font-size: 28rpx;
-	padding: 10rpx 20rpx;
-}
-
-.recording-cancel:active {
-	opacity: 0.8;
-}
-
-@keyframes wave {
-	0% {
-		transform: scale(0.8);
-		opacity: 1;
-	}
-	100% {
-		transform: scale(1.5);
-		opacity: 0;
-	}
+.icon-play:before {
+	content: "\e7cb";
 }
 </style>

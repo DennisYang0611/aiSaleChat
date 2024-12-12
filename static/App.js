@@ -1,11 +1,10 @@
-import React from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import AppNavigator from './src/navigation/AppNavigator';
+import Vue from 'vue'
+import App from './App.vue'
+import './static/css/index.css'
 
-export default function App() {
-  return (
-    <SafeAreaProvider>
-      <AppNavigator />
-    </SafeAreaProvider>
-  );
-} 
+Vue.config.productionTip = false
+
+const app = new Vue({
+  ...App
+})
+app.$mount() 

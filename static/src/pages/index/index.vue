@@ -204,12 +204,14 @@ export default Vue.extend({
 		},
 		handleStartChat(index: number) {
 			const agent = this.agents[index];
-			// 存储当前对话的 agent 数据
-			uni.setStorageSync('currentChatAgent', agent);
+			// 将 prompt 和 dimensions 编码后传递给聊天页面
+			const params = {
+				prompt: encodeURIComponent(agent.prompt),
+				dimensions: encodeURIComponent(JSON.stringify(agent.dimensions))
+			};
 			
-			uni.navigateTo({
-				url: '/pages/chat/index'
-			});
+			const url = `/pages/chat/index?prompt=${params.prompt}&dimensions=${params.dimensions}`;
+			uni.navigateTo({ url });
 		},
 		isPromptOverflow(prompt: string): boolean {
 			return prompt.length > 100; // 可以根据实际需求调整长度
