@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "burkeholland.simple-react-snippets",
+    "prisma.prisma",
+    "bradlc.vscode-tailwindcss"
+  ]
+}
