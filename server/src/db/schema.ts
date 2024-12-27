@@ -8,6 +8,8 @@ import {
   jsonb,
   uuid,
   uniqueIndex,
+  integer,
+  // bytea,
 } from "drizzle-orm/pg-core";
 
 // 定义许可证状态枚举
@@ -89,40 +91,12 @@ export const TrainingRecords = pgTable("training_records", {
   trainingResult: text("training_result"),
   // 评分
   ratings: jsonb("ratings").default({}).notNull(),
+
+  // message content
+  messages: jsonb("messages").default([]).notNull(),
+
   // 添加训练状态字段
   status: varchar("status", { length: 50 }).default("pending").notNull(),
-  // 创建和更新时间
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const Messages = pgTable("messages", {
-  // 自动生成的唯一标识符
-  id: uuid("id").primaryKey().defaultRandom(),
-  // 关联的Agent ID
-  agentId: uuid("agent_id")
-    .references(() => Agents.id, {
-      onDelete: "cascade",
-      onUpdate: "cascade",
-    })
-    .notNull(),
-  // 关联的训练记录 ID
-  trainingRecordId: uuid("training_record_id")
-    .references(() => TrainingRecords.id, {
-      onDelete: "cascade",
-      onUpdate: "cascade",
-    })
-    .notNull(),
-  // 关联的用户ID
-  userId: uuid("user_id")
-    .references(() => Users.id, {
-      onDelete: "cascade",
-      onUpdate: "cascade",
-    })
-    .notNull(),
-  // 对话记录
-  content: jsonb("content").default([]).notNull(),
-
   // 创建和更新时间
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -131,32 +105,43 @@ export const Messages = pgTable("messages", {
 export const UserAgents = pgTable(
   "user_agents",
   {
-    // 自动生成的唯一标识符
     id: uuid("id").primaryKey().defaultRandom(),
-    // 用户ID
     userId: uuid("user_id")
       .references(() => Users.id, {
         onDelete: "cascade",
         onUpdate: "cascade",
       })
       .notNull(),
-    // Agent ID
     agentId: uuid("agent_id")
       .references(() => Agents.id, {
         onDelete: "cascade",
         onUpdate: "cascade",
       })
       .notNull(),
-    // 创建和更新时间
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => {
-    return {
-      userAgentUnique: uniqueIndex("user_agent_unique").on(
-        table.userId,
-        table.agentId
-      ),
-    };
-  }
+  (table) => ({
+    userAgentUnique: uniqueIndex("user_agent_unique").on(
+      table.userId,
+      table.agentId
+    ),
+  })
 );
+
+// 附件
+export const Attachments = pgTable("attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // 附件类型 (如 image/jpeg, application/pdf 等)
+  type: varchar("type", { length: 50 }).notNull(),
+  // 附件名称
+  name: varchar("name", { length: 255 }).notNull(),
+  // 附件大小(bytes)
+  size: integer("size").notNull(),
+  // 附件二进制数据
+  // data: bytea("data").notNull(),
+  // 创建时间
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  // 更新时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

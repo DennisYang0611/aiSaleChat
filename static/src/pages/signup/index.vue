@@ -17,30 +17,10 @@
 		</view>
 
 		<view class="form-area">
-			<input
-				class="input-box"
-				type="text"
-				placeholder="Shawn Samson"
-				v-model="name"
-			/>
-			<input
-				class="input-box"
-				type="text"
-				placeholder="shawnsamson@gmail.com"
-				v-model="email"
-			/>
-			<input
-				class="input-box"
-				type="password"
-				placeholder="******"
-				v-model="password"
-			/>
-			<input
-				class="input-box"
-				type="password"
-				placeholder="******"
-				v-model="confirmPassword"
-			/>
+			<input class="input-box" type="text" placeholder="Shawn Samson" v-model="username" />
+			<input class="input-box" type="text" placeholder="shawnsamson@gmail.com" v-model="email" />
+			<input class="input-box" type="password" placeholder="******" v-model="password" />
+			<input class="input-box" type="password" placeholder="******" v-model="confirmPassword" />
 		</view>
 
 		<view class="button-area">
@@ -75,7 +55,7 @@ interface RegisterResponse {
 export default Vue.extend({
 	data() {
 		return {
-			name: '',
+			username: '',
 			email: '',
 			password: '',
 			confirmPassword: ''
@@ -84,7 +64,7 @@ export default Vue.extend({
 	methods: {
 		async handleSignUp() {
 			// 表单验证
-			if(!this.name || !this.email || !this.password || !this.confirmPassword) {
+			if (!this.username || !this.email || !this.password || !this.confirmPassword) {
 				uni.showToast({
 					title: '请填写完整信息',
 					icon: 'none'
@@ -92,7 +72,7 @@ export default Vue.extend({
 				return;
 			}
 
-			if(this.password !== this.confirmPassword) {
+			if (this.password !== this.confirmPassword) {
 				uni.showToast({
 					title: '两次密码不一致',
 					icon: 'none'
@@ -109,12 +89,12 @@ export default Vue.extend({
 					url: '/auth/register',
 					method: 'POST',
 					data: {
-						username: this.name,
+						username: this.username,
 						email: this.email,
 						password: this.password
 					}
 				});
-				if(res.code === 0) {
+				if (res.code === 0) {
 					uni.showToast({
 						title: '注册成功',
 						icon: 'success',
@@ -128,7 +108,7 @@ export default Vue.extend({
 					const data = res as RegisterResponse;
 					throw new Error(data.message || '注册失败');
 				}
-			} catch(error) {
+			} catch (error) {
 				console.error('注册失败:', error);
 				uni.showToast({
 					title: (error as Error).message || '注册失败,请重试',
@@ -299,6 +279,7 @@ button::after {
 	from {
 		transform: rotate(0deg);
 	}
+
 	to {
 		transform: rotate(360deg);
 	}
@@ -309,10 +290,12 @@ button::after {
 		transform: scale(1);
 		opacity: 0.8;
 	}
+
 	50% {
 		transform: scale(1.2);
 		opacity: 1;
 	}
+
 	100% {
 		transform: scale(1);
 		opacity: 0.8;
@@ -328,6 +311,7 @@ button::after {
 	from {
 		transform: rotate(0deg);
 	}
+
 	to {
 		transform: rotate(-360deg);
 	}
@@ -335,76 +319,78 @@ button::after {
 
 /* 小屏幕适配 (< 375px) */
 @media screen and (max-width: 375px) {
-  .container {
-    padding: 0 24rpx;
-  }
+	.container {
+		padding: 0 24rpx;
+	}
 
-  .logo-area {
-    margin-bottom: 40rpx;
-  }
+	.logo-area {
+		margin-bottom: 40rpx;
+	}
 
-  .logo {
-    width: 60rpx;
-    height: 60rpx;
-  }
+	.logo {
+		width: 60rpx;
+		height: 60rpx;
+	}
 
-  .title {
-    font-size: 40rpx;
-  }
+	.title {
+		font-size: 40rpx;
+	}
 
-  .subtitle {
-    font-size: 40rpx;
-  }
+	.subtitle {
+		font-size: 40rpx;
+	}
 
-  .input-box {
-    height: 80rpx;
-    font-size: 28rpx;
-  }
+	.input-box {
+		height: 80rpx;
+		font-size: 28rpx;
+	}
 }
 
 /* 平板适配 (768px - 1024px) */
 @media screen and (min-width: 768px) {
-  .container {
-    padding: 0 60rpx;
-    max-width: 800rpx;
-    margin: 0 auto;
-  }
+	.container {
+		padding: 0 60rpx;
+		max-width: 800rpx;
+		margin: 0 auto;
+	}
 
-  .logo {
-    width: 100rpx;
-    height: 100rpx;
-  }
+	.logo {
+		width: 100rpx;
+		height: 100rpx;
+	}
 
-  .title, .subtitle {
-    font-size: 56rpx;
-  }
+	.title,
+	.subtitle {
+		font-size: 56rpx;
+	}
 
-  .input-box {
-    height: 100rpx;
-    font-size: 32rpx;
-    margin-bottom: 40rpx;
-  }
+	.input-box {
+		height: 100rpx;
+		font-size: 32rpx;
+		margin-bottom: 40rpx;
+	}
 
-  .signup-btn, .google-btn {
-    height: 120rpx;
-    font-size: 36rpx;
-  }
+	.signup-btn,
+	.google-btn {
+		height: 120rpx;
+		font-size: 36rpx;
+	}
 }
 
 /* 大屏桌面适配 */
 @media screen and (min-width: 1024px) {
-  .container {
-    max-width: 1000rpx;
-  }
+	.container {
+		max-width: 1000rpx;
+	}
 
-  .form-area {
-    width: 600rpx;
-    margin: 0 auto;
-  }
+	.form-area {
+		width: 600rpx;
+		margin: 0 auto;
+	}
 
-  .button-area {
-    width: 600rpx;
-    margin: 60rpx auto;
-  }
+	.button-area {
+		width: 600rpx;
+		margin: 60rpx auto;
+	}
 }
 </style>

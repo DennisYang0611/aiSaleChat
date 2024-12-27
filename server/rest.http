@@ -1,18 +1,28 @@
 @host=http://localhost:3100/api
-@token=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwibmFtZSI6Iua1i-ivleeUqOaItyIsInBhc3N3b3JkIjoiJDJiJDEwJG5TVHRFa0RDcEh0T0phTnZnQ0VFZHVZek1rQ1I2T0dIY1EuSzNaQVJlQUo2ZDFyUUxJeXBXIiwiY3JlYXRlZEF0IjoiMjAyNC0xMi0wNlQwNjo0NTo0Ny4yMzVaIiwidXBkYXRlZEF0IjoiMjAyNC0xMi0wNlQwNjo0NTo0Ny4yMzVaIn0.e8TExxw2qQYNvuNRQMcWeqeQ6_RtxjJEfN3GteVmnaQ
+@token=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZlOWQ2YjU0LTQwZDctNGQ1Ni1hM2IxLTUwYzIxZmVlZWI0MSIsInVzZXJuYW1lIjoi5rWL6K-V55So5oi3IiwiZW1haWwiOiJ0ZXN0MkBleGFtcGxlLmNvbSIsInBhc3N3b3JkIjoiJDJiJDEwJHA5NjZmUjc1MFR3SS9pWWF5Rnl3eXV2L1Nyak5udGJBUklsTXYxQTZmSm1raDF2VUcvS1lhIiwicmVnaXN0cmF0aW9uRGF0ZSI6IjIwMjQtMTItMTFUMTU6NDE6NDMuMTAwWiIsImxhc3RMb2dpbiI6IjIwMjQtMTItMTFUMTU6NDE6NDMuMTAwWiIsImNyZWF0ZWRBdCI6IjIwMjQtMTItMTFUMTU6NDE6NDMuMTAwWiIsInVwZGF0ZWRBdCI6IjIwMjQtMTItMTFUMTU6NDE6NDMuMTAwWiJ9.T5zAfirpLo8OsuPcwJkuPisQilnYloQuyyTIncEVT5g
+
+@agentId=0886a622-c3f0-4577-b840-055f9b86d29b
+@userId=6ffd324c-4ef0-496c-89b2-672e87296dd8
+@trainingRecordId=839cacf2-d1e8-4104-a5de-a72d5d1523f6
 
 ### 用户登录
 POST {{host}}/auth/login
 Content-Type: application/json
+Authorization: {{token}}
 
 {
     "email": "test2@example.com",
     "password": "123456"
 }
 
+### 获取用户信息
+GET {{host}}/user/info
+Authorization: {{token}}
+
 ### 用户注册
 POST {{host}}/auth/register
 Content-Type: application/json
+Authorization: {{token}}
 
 {
     "username": "测试用户",
@@ -22,10 +32,16 @@ Content-Type: application/json
 
 ### 获取用户列表
 GET {{host}}/user?page=1&pageSize=10
+Authorization: {{token}}
+
+### 获取单个用户信息
+GET {{host}}/user/fe9d6b54-40d7-4d56-a3b1-50c21feeeb41
+Authorization: {{token}}
 
 ### 更新用户信息
-PATCH {{host}}/user/78f8f714-258a-4d39-8eb1-94cb4aa5d6c4
+PUT {{host}}/user/78f8f714-258a-4d39-8eb1-94cb4aa5d6c4
 Content-Type: application/json
+Authorization: {{token}}
 
 {
     "name": "新用户名"
@@ -34,15 +50,18 @@ Content-Type: application/json
 
 ### 获取Agent
 GET {{host}}/agent?page=1&pageSize=10
+Authorization: {{token}}
 
 
 ### 获取单个Agent
-GET {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
+GET {{host}}/agent/{{agentId}}
+Authorization: {{token}}
 
 
 ### 创建Agent
 POST {{host}}/agent
 Content-Type: application/json
+Authorization: {{token}}
 
 {
   "creatorId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41",
@@ -67,49 +86,69 @@ Content-Type: application/json
 }
 
 ### 更新Agent
-PATCH {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
+PUT {{host}}/agent/{{agentId}}
 Content-Type: application/json
+Authorization: {{token}}
 
 {
-    "name": "sssssss"
+    "name": "你好啊"
 }
 
 ### 删除Agent
-DELETE {{host}}/agent/1821625d-2ad2-42d3-a55d-dbcce8de30a5
-
+DELETE {{host}}/agent/{{agentId}}
+Authorization: {{token}}
 
 ### 添加训练记录
-POST {{host}}/agent/training
+POST {{host}}/agent/trainingRecord
 Content-Type: application/json
+Authorization: {{token}}
 
 {
-    "agentId": "1821625d-2ad2-42d3-a55d-dbcce8de30a5",
-    "userId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41"
+    "agentId": "{{agentId}}",
+    "userId": "{{userId}}"
 }
 
 ### 获取训练记录
-GET {{host}}/agent/training
+GET {{host}}/agent/trainingRecord?page=1&pageSize=10
+Authorization: {{token}}
 
+### 获取单个训练记录
+GET {{host}}/agent/trainingRecord/{{trainingRecordId}}
+Authorization: {{token}}
+
+###测试
+GET {{host}}/agent/trainingRecord/66803987-c7aa-4adf-bc24-d399e2909dc6
+Authorization: {{token}}
 
 ### 获取用户关联的agent
-GET {{host}}/user/agents?userId=fe9d6b54-40d7-4d56-a3b1-50c21feeeb41&page=1&pageSize=10
+GET {{host}}/user/agents?userId={{userId}}&page=1&pageSize=10
+Authorization: {{token}}
+
+### 更新训练记录 message
+PUT {{host}}/agent/trainingRecord/29ec39b1-d11b-4bc0-89b6-097062dde38d/message
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+    "messages": [
+        {
+            "role": "user",
+            "content": "你好"
+        },
+        {
+            "role": "assistant",
+            "content": "你好"
+        }
+    ]
+}
 
 
 ### 给当前用户关联agent
 POST {{host}}/user/agent
 Content-Type: application/json
+Authorization: {{token}}
 
 {
-    "agentId": "1821625d-2ad2-42d3-a55d-dbcce8de30a5",
-    "userId": "fe9d6b54-40d7-4d56-a3b1-50c21feeeb41"
+    "agentId": "{{agentId}}",
+    "userId": "{{userId}}"
 }
-
-
-
-
-
-
-
-
-
-

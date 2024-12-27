@@ -1,72 +1,72 @@
 <template>
 	<view class="container">
+		<!-- 背景效果 -->
+		<view class="background">
+			<view class="bg-grid"></view>
+			<view class="bg-gradient"></view>
+		</view>
+
 		<!-- 顶部导航 -->
 		<view class="header">
 			<view class="back-btn" @tap="handleBack">
 				<text class="back-icon">←</text>
 			</view>
-			<text class="header-title">选择评分维度</text>
-			<view class="action-btns">
-				<view class="action-btn" @tap="handleAdd">
-					<text class="action-icon">+</text>
-				</view>
-				<view class="action-btn" @tap="handleAIGenerate">
-					<text class="action-text">AI</text>
-				</view>
-			</view>
+			<text class="header-title">评分维度设置</text>
 		</view>
 
-		<!-- 维度列表 -->
-		<view class="dimensions-list">
-			<view class="list-header" v-if="dimensions.length > 0">
-				<text class="total-score">总分: {{ totalScore }}/100</text>
+		<!-- 主要内容区 -->
+		<view class="content-wrapper">
+			<!-- 操作按钮 -->
+			<view class="action-buttons">
+				<view class="action-btn primary" @tap="handleAIGenerate">
+					<text class="btn-icon">🤖</text>
+					<text class="btn-text">AI生成</text>
+				</view>
+				<view class="action-btn" @tap="handleAdd">
+					<text class="btn-icon">+</text>
+					<text class="btn-text">手动添加</text>
+				</view>
 			</view>
-			<view 
-				v-for="(dimension, index) in dimensions" 
-				:key="index"
-				class="dimension-item"
-				:class="{ 'animate-in': true }"
-				:style="{ animationDelay: `${index * 0.1}s` }"
-			>
-				<view class="dimension-info">
-					<view class="dimension-header">
-						<text class="dimension-name">{{ dimension.keyword }}</text>
-						<view class="score-input-wrap">
-							<input
-								type="number"
-								class="score-input"
-								:value="dimension.score"
-								@input="handleScoreChange(index, $event)"
-								@blur="handleScoreBlur(index)"
+
+			<!-- 维度列表 -->
+			<view class="dimensions-container">
+				<!-- 总分统计 -->
+				<view class="total-score">
+					<text class="total-label">当前总分</text>
+					<text class="total-value" :class="{ 'warning': totalScore > 100, 'success': totalScore === 100 }">
+						{{ totalScore > 100 ? totalScore : totalScore }}分
+					</text>
+				</view>
+
+				<view class="dimension-card" v-for="(dim, index) in dimensions" :key="index">
+					<view class="dimension-content">
+						<view class="dimension-header">
+							<text class="dimension-title">{{ dim.keyword }}</text>
+							<text class="dimension-score">{{ dim.score }}分</text>
+						</view>
+						<view class="score-slider">
+							<slider 
+								:value="dim.score" 
+								@change="(e) => handleScoreChange(index, e)"
+								min="0" 
+								max="100"
+								show-value
+								activeColor="#6366f1"
+								backgroundColor="rgba(99, 102, 241, 0.1)"
 							/>
-							<text class="score-unit">分</text>
 						</view>
 					</view>
-					<view class="score-bar">
-						<view 
-							class="score-progress"
-							:style="{ width: `${dimension.score}%` }"
-						></view>
-					</view>
-				</view>
-				<view class="delete-btn" @tap.stop="handleDelete(index)">
-					<text class="delete-icon">×</text>
 				</view>
 			</view>
-			<view class="empty-state" v-if="dimensions.length === 0">
-				<text class="empty-text">点击右上角按钮添加评分维度</text>
+
+			<!-- 底部确认按钮 -->
+			<view class="bottom-btn">
+				<button class="confirm-btn" @tap="handleConfirm">
+					<text class="btn-text">{{ confirmButtonText }}</text>
+					<text class="btn-icon">→</text>
+				</button>
 			</view>
 		</view>
-		
-		<!-- 底部按钮 -->
-		<button 
-			class="confirm-btn" 
-			@tap="handleConfirm"
-			:disabled="dimensions.length === 0 || totalScore !== 100"
-			:class="{ 'disabled': dimensions.length === 0 || totalScore !== 100 }"
-		>
-			{{ confirmButtonText }}
-		</button>
 
 		<!-- 添加维度弹窗 -->
 		<view class="modal" v-if="showAddModal">
@@ -74,19 +74,9 @@
 			<view class="modal-content">
 				<text class="modal-title">添加评分维度</text>
 				<view class="input-group">
-					<input 
-						class="modal-input"
-						v-model="newDimension.keyword"
-						placeholder="输入维度名称"
-						type="text"
-					/>
-					<input 
-						class="modal-input"
-						v-model="newDimension.score"
-						placeholder="输入分值(0-100)"
-						type="number"
-						@input="handleScoreInput"
-					/>
+					<input class="modal-input" v-model="newDimension.keyword" placeholder="输入维度名称" type="text" />
+					<input class="modal-input" v-model="newDimension.score" placeholder="输入分值(0-100)" type="number"
+						@input="handleScoreInput" />
 				</view>
 				<view class="modal-btns">
 					<button class="modal-btn cancel" @tap="closeModal">取消</button>
@@ -102,10 +92,19 @@
 				<text class="loading-text">AI生成中...</text>
 			</view>
 		</view>
+
+		<!-- 保存遮罩 -->
+		<view class="save-mask" v-if="saving">
+			<view class="save-content">
+				<view class="loading-icon"></view>
+				<text class="save-tip">正在生成场景描述...</text>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script lang="ts">
+import { request } from '@/utils/request';
 import Vue from 'vue';
 
 interface Dimension {
@@ -113,32 +112,40 @@ interface Dimension {
 	score: number;
 }
 
-interface AIMessage {
-	role: string;
-	content: string;
-}
-
-interface AIChoice {
-	message: AIMessage;
-	finish_reason: string;
-	index: number;
-}
-
+// AI接口返回的数据结构
 interface AIResponse {
-	id: string;
-	model: string;
 	choices: Array<{
 		message: {
-			role: string;
 			content: string;
 		};
-		finish_reason: string;
-		index: number;
 	}>;
-	usage: {
-		prompt_tokens: number;
-		completion_tokens: number;
-		total_tokens: number;
+}
+
+// 后端接口返回的数据结构
+interface ApiResponse {
+	code: number;
+	message?: string;
+	data?: {
+		dimensions?: Array<Dimension>;
+		description?: string;
+		[key: string]: any;
+	};
+}
+
+// 后端返回的数据结构
+interface AgentResponse {
+	code: number;
+	message: string;
+	data: {
+		list: Array<{
+			id: string;
+			ratingDimensions: {
+				[key: string]: number;
+			} | Array<{
+				keyword: string;
+				score: number;
+			}>;
+		}>;
 	};
 }
 
@@ -150,11 +157,17 @@ export default Vue.extend({
 			isLoading: false,
 			newDimension: {
 				keyword: '',
-				score: ''
+				score: 0
 			},
-			promptText: uni.getStorageSync('generatedPrompt') || ''
+			promptText: uni.getStorageSync('generatedPrompt') || '',
+			saving: false
 		}
 	},
+
+	async created() {
+		await this.loadDimensions();
+	},
+
 	computed: {
 		totalScore(): number {
 			return this.dimensions.reduce((sum, item) => sum + Number(item.score), 0);
@@ -167,7 +180,7 @@ export default Vue.extend({
 				return `还差 ${100 - this.totalScore} 分`;
 			}
 			if (this.totalScore > 100) {
-				return `超出 ${this.totalScore - 100} 分`;
+				return `超出 ${this.totalScore - 100} 分，请调整`;
 			}
 			return '确认使用这些维度';
 		}
@@ -183,7 +196,7 @@ export default Vue.extend({
 			this.showAddModal = false;
 			this.newDimension = {
 				keyword: '',
-				score: ''
+				score: 0
 			};
 		},
 		handleScoreInput(e: any) {
@@ -191,17 +204,17 @@ export default Vue.extend({
 			if (isNaN(value)) value = 0;
 			if (value < 0) value = 0;
 			if (value > 100) value = 100;
-			this.newDimension.score = value.toString();
+			this.newDimension.score = value;
 		},
 		confirmAdd() {
 			if (!this.newDimension.keyword.trim()) {
 				uni.showToast({
 					title: '请输入维度名称',
-					icon: 'none'
+						icon: 'none'
 				});
 				return;
 			}
-			if (!this.newDimension.score) {
+			if (this.newDimension.score <= 0) {
 				uni.showToast({
 					title: '请输入分值',
 					icon: 'none'
@@ -209,7 +222,7 @@ export default Vue.extend({
 				return;
 			}
 
-			const totalScore = this.dimensions.reduce((sum, item) => sum + Number(item.score), 0) + Number(this.newDimension.score);
+			const totalScore = this.dimensions.reduce((sum, item) => sum + Number(item.score), 0) + this.newDimension.score;
 			if (totalScore > 100) {
 				uni.showToast({
 					title: '总分不能超过100分',
@@ -220,7 +233,7 @@ export default Vue.extend({
 
 			this.dimensions.push({
 				keyword: this.newDimension.keyword,
-				score: Number(this.newDimension.score)
+				score: this.newDimension.score
 			});
 			this.closeModal();
 		},
@@ -243,18 +256,21 @@ export default Vue.extend({
 					url: 'https://api.fastgpt.in/api/v1/chat/completions',
 					method: 'POST',
 					header: {
-						'Authorization': 'Bearer fastgpt-ivclLFAcNWNyOVNvvm8K9LjcoajA5sH8roTienpWDm9pbsKyiSk8aoHXnH7GhV',
+						'Authorization': 'Bearer fastgpt-dxg9VTnNUgRF25NLUVKd1ZgZOMoq6933VEGHEAbLeaJFykSSzdPvb6Pxk',
 						'Content-Type': 'application/json'
 					},
 					data: {
+						chatId: Math.random().toString(36).substring(7),
+						stream: false,
+						detail: false,
+						responseChatItemId: 'dimension_' + Date.now(),
+						variables: {
+							prompt: this.promptText
+						},
 						messages: [
 							{
-								role: 'system',
-								content: '你是一个销售培训专家。请根据提供的销售场景提示词，生成5个评分维度和对应的分值。分值总和必须等于100。返回格式为JSON数组，每个对象包含keyword和score字段。示例：[{"keyword":"产品知识","score":25},{"keyword":"沟通技巧","score":30}]'
-							},
-							{
 								role: 'user',
-								content: `请根据以下销售场景生成评分维度：${this.promptText}`
+								content: '根据提供的销售场景提示词，生成5个评分维度和对应的分值。分值总和必须等于100。返回格式为JSON数组，每个对象包含keyword和score字段。示例：[{"keyword":"产品知识","score":25},{"keyword":"沟通技巧","score":30}]'
 							}
 						]
 					}
@@ -282,7 +298,7 @@ export default Vue.extend({
 				}
 
 				// 验证数据格式
-				if (!Array.isArray(dimensions) || 
+				if (!Array.isArray(dimensions) ||
 					!dimensions.every(d => typeof d.keyword === 'string' && typeof d.score === 'number')) {
 					throw new Error('AI返回的数据格式不正确');
 				}
@@ -315,7 +331,7 @@ export default Vue.extend({
 				this.isLoading = false;
 			}
 		},
-		handleConfirm() {
+		async handleConfirm() {
 			if (this.dimensions.length === 0) {
 				uni.showToast({
 					title: '请添加评分维度',
@@ -325,60 +341,75 @@ export default Vue.extend({
 			}
 
 			if (this.totalScore !== 100) {
+				let message = this.totalScore > 100 
+					? `总分超出${this.totalScore - 100}分，请调整` 
+					: `总分不足，还差${100 - this.totalScore}分`;
+				
 				uni.showToast({
-					title: '总分必须等于100分',
+					title: message,
 					icon: 'none'
 				});
 				return;
 			}
 
 			try {
-				// 保存提示词和维度的关联数据
-				const agentData = {
-					prompt: this.promptText,
-					dimensions: this.dimensions,
-					createTime: new Date().getTime()
-				};
-
-				// 获取现有的 agents 数据
-				const agents = uni.getStorageSync('agents') || [];
-				agents.push(agentData);
+				this.saving = true;
 				
-				// 更新存储
-				uni.setStorageSync('agents', agents);
-
-				uni.showToast({
-					title: '保存成功',
-					icon: 'success',
-					duration: 1500
+				// 调用 AI 生成描述
+				const description = await this.generateAIDescription();
+				
+				// 直接更新 agent
+				const agentId = uni.getStorageSync('agentId');
+				if (!agentId) {
+					throw new Error('未找到场景ID');
+				}
+				
+				const res = await request<ApiResponse>({
+					url: `/agent/${agentId}`,
+					method: 'PATCH',
+					data: {
+						ratingDimensions: this.dimensions,
+						description: description
+					}
 				});
 
-				setTimeout(() => {
-					uni.reLaunch({
-						url: '/pages/index/index'
+				if (res.code === 0) {
+					uni.showToast({
+						title: '保存成功',
+						icon: 'success'
 					});
-				}, 1500);
-
+					
+					// 等待所有请求完成后再返回
+					setTimeout(() => {
+						uni.reLaunch({
+							url: '/pages/index/index'
+						});
+					}, 1500);
+				} else {
+					throw new Error(res.message || '保存失败');
+				}
 			} catch (error) {
+				console.error('保存失败:', error);
 				uni.showToast({
-					title: '操作失败，请重试',
+					title: error instanceof Error ? error.message : '保存失败',
 					icon: 'none'
 				});
-				console.error('Error in handleConfirm:', error);
+			} finally {
+				this.saving = false;
 			}
 		},
 		handleScoreChange(index: number, event: any) {
-			let value = parseInt(event.detail.value);
+			let value = parseInt(event.detail?.value || 0);
 			if (isNaN(value)) value = 0;
 			if (value < 0) value = 0;
 			if (value > 100) value = 100;
-			
+
 			this.$set(this.dimensions[index], 'score', value);
 		},
 		handleScoreBlur(index: number) {
 			const currentScore = this.dimensions[index].score;
 			const otherScoresTotal = this.totalScore - currentScore;
-			
+
 			if (otherScoresTotal + currentScore > 100) {
 				// 如果总分超过100，自动调整当前分值
 				const newScore = 100 - otherScoresTotal;
@@ -390,6 +421,166 @@ export default Vue.extend({
 					icon: 'none'
 				});
 			}
+		},
+		randomBinary() {
+			return Math.random() > 0.5 ? '1' : '0';
+		},
+		// 加载维度数据
+		async loadDimensions() {
+			const agentId = uni.getStorageSync('agentId');
+			if (!agentId) {
+				uni.showToast({
+					title: '未找到场景ID',
+					icon: 'none'
+				});
+				return;
+			}
+
+			try {
+				const response = await request<AgentResponse>({
+					url: `/agent/${agentId}`,
+					method: 'GET'
+				});
+
+				if (response.code === 0 && response.data?.list?.[0]) {
+					const agent = response.data.list[0];
+					if (agent.ratingDimensions) {
+						// 处理不同格式的 ratingDimensions
+						if (Array.isArray(agent.ratingDimensions)) {
+							// 如果是数组格式，直接使用
+							this.dimensions = agent.ratingDimensions.map(dim => ({
+								keyword: dim.keyword,
+								score: Number(dim.score)
+							}));
+						} else {
+							// 如果是对象格式，转换为数组
+							this.dimensions = Object.entries(agent.ratingDimensions as Record<string, number>).map(([keyword, score]) => ({
+								keyword,
+								score: Number(score)
+							}));
+						}
+
+						// 按分值从大到小排序
+						this.dimensions.sort((a, b) => b.score - a.score);
+					}
+				}
+			} catch (error) {
+				console.error('加载维度失败:', error);
+				uni.showToast({
+					title: '加载维度失败',
+					icon: 'none'
+				});
+			}
+		},
+		async generateAIDescription() {
+			try {
+				const response = await uni.request({
+					url: 'https://api.fastgpt.in/api/v1/chat/completions',
+					method: 'POST',
+					header: {
+						'Authorization': 'Bearer fastgpt-rlTG3EPU1QgI2wYd6dtG91crBfQNWBPDX6jg6Nqw31HghYLoIglEzwvdaX61ouXiY',
+						'Content-Type': 'application/json'
+					},
+					data: {
+						chatId: `desc_${Date.now()}`,
+						stream: false,
+						detail: false,
+						responseChatItemId: 'my_responseChatItemId',
+						variables: {
+							prompt: this.promptText || '这是一个销售训练场景',
+							dimension: JSON.stringify(this.dimensions || [
+								{ score: 30, keyword: "产品知识" },
+								{ score: 25, keyword: "沟通技巧" },
+								{ score: 20, keyword: "市场趋势分析" },
+								{ score: 15, keyword: "客户需求理解" },
+								{ score: 10, keyword: "情感营销能力" }
+							])
+						},
+						messages: [
+							{
+								role: 'user',
+								content: '根据提供的销售场景提示词和评分维度，生成一段场景描述。描述应该包含场景特点和重点关注的能力维度。'
+							}
+						]
+					}
+				});
+
+				if (response.statusCode === 200 && response.data) {
+					const aiResponse = response.data as {
+						choices: Array<{
+							message: {
+								role: string;
+								content: string;
+							};
+						}>;
+					};
+					
+					const description = aiResponse.choices?.[0]?.message?.content;
+					if (!description) {
+						throw new Error('生成描述失败');
+					}
+					return description;
+				}
+				throw new Error('AI 接口返回异常');
+			} catch (error) {
+				console.error('生成描述失败:', error);
+				throw error;
+			}
+		},
+		async handleSave() {
+			try {
+				this.saving = true;
+				
+				// 调用 AI 生成描述
+				const description = await this.generateAIDescription();
+				
+				// 保存到后端
+				const res = await request<ApiResponse>({
+					url: '/dimension',
+					method: 'POST',
+					data: {
+						dimensions: this.dimensions,
+						description
+					}
+				});
+
+				if (res.code === 0) {
+					// 获取完整的 agent 信息并更新
+					const agentRes = await request<ApiResponse>({
+						url: '/agent',
+						method: 'GET'
+					});
+					
+					if (agentRes.code === 0 && agentRes.data) {
+						// 更新 agent 的维度和描述信息
+						await request({
+							url: `/agent/${agentRes.data.id}`,
+							method: 'PATCH',
+							data: {
+								ratingDimensions: this.dimensions,
+								description: description
+							}
+						});
+					}
+
+					uni.showToast({
+						title: '保存成功',
+						icon: 'success'
+					});
+					
+					setTimeout(() => {
+						uni.navigateBack();
+					}, 1500);
+				}
+			} catch (error) {
+				console.error('保存失败:', error);
+				uni.showToast({
+					title: '保存失败',
+					icon: 'none'
+				});
+			} finally {
+				this.saving = false;
+			}
 		}
 	}
 });
@@ -398,15 +589,42 @@ export default Vue.extend({
 <style>
 .container {
 	min-height: 100vh;
-	background-color: #fff;
-	padding: 40rpx 30rpx;
-	box-sizing: border-box;
+	background: #ffffff;
+	position: relative;
+	overflow: hidden;
+}
+
+.background {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+}
+
+.bg-grid {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-image: 
+		linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+	background-size: 20px 20px;
 }
 
 .header {
+	padding: 40rpx;
 	display: flex;
 	align-items: center;
-	margin-bottom: 40rpx;
+	position: relative;
+	z-index: 2;
+}
+
+.header-title {
+	color: #333;
+	font-size: 36rpx;
+	font-weight: 600;
 }
 
 .back-btn {
@@ -415,6 +633,7 @@ export default Vue.extend({
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	margin-right: 20rpx;
 }
 
 .back-icon {
@@ -422,208 +641,93 @@ export default Vue.extend({
 	color: #333;
 }
 
-.header-title {
-	flex: 1;
-	text-align: center;
-	font-size: 36rpx;
-	font-weight: bold;
-	color: #333;
-	margin-right: 60rpx;
+.content-wrapper {
+	position: relative;
+	z-index: 2;
+	padding: 0 40rpx;
 }
 
-.section-title {
-	font-size: 28rpx;
-	color: #666;
-	margin-bottom: 20rpx;
-}
-
-.prompt-section {
+.action-buttons {
+	display: flex;
+	gap: 20rpx;
 	margin-bottom: 40rpx;
 }
 
-.prompt-box {
-	background: #f8f8f8;
-	border-radius: 16rpx;
-	padding: 20rpx;
-}
-
-.prompt-text {
-	font-size: 26rpx;
-	color: #333;
-	line-height: 1.6;
-}
-
-.dimensions-list {
-	padding: 20rpx;
-	margin: 20rpx 0 120rpx 0;
-}
-
-.list-header {
-	display: flex;
-	justify-content: flex-end;
-	margin-bottom: 20rpx;
-}
-
-.total-score {
-	font-size: 28rpx;
-	color: #666;
-	background: #f8f8f8;
-	padding: 8rpx 20rpx;
-	border-radius: 20rpx;
-}
-
-.dimension-item {
-	background: #fff;
-	border-radius: 16rpx;
-	margin-bottom: 20rpx;
-	padding: 24rpx;
+.action-btn {
+	flex: 1;
+	height: 88rpx;
 	display: flex;
 	align-items: center;
-	box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+	justify-content: center;
+	background: #ffffff;
+	border: 1px solid rgba(99, 102, 241, 0.1);
+	border-radius: 12rpx;
+	color: #333;
+	gap: 10rpx;
 	transition: all 0.3s ease;
-	animation: slideIn 0.5s ease forwards;
-	opacity: 0;
-	transform: translateY(20rpx);
 }
 
-.dimension-item:active {
+.action-btn:active {
 	transform: scale(0.98);
 }
 
-.dimension-info {
-	flex: 1;
-	margin-right: 20rpx;
+.action-btn.primary {
+	background: linear-gradient(135deg, #818cf8 0%, #8b5cf6 100%);
+	color: #fff;
+	border: none;
+	box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.2);
+}
+
+.dimension-card {
+	background: #ffffff;
+	border-radius: 16rpx;
+	padding: 30rpx;
+	margin-bottom: 24rpx;
+	border: 1px solid rgba(99, 102, 241, 0.15);
+	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
+	transition: all 0.3s ease;
+}
+
+.dimension-card:hover {
+	transform: translateY(-2rpx);
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 }
 
 .dimension-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 16rpx;
+	margin-bottom: 20rpx;
 }
 
-.dimension-name {
-	font-size: 28rpx;
+.dimension-title {
 	color: #333;
+	font-size: 32rpx;
 	font-weight: 500;
 }
 
 .dimension-score {
+	background: linear-gradient(135deg, #818cf8 0%, #8b5cf6 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
 	font-size: 28rpx;
-	color: #333;
-	font-weight: 500;
-}
-
-.score-bar {
-	height: 6rpx;
-	background: #f0f0f0;
-	border-radius: 3rpx;
-	overflow: hidden;
-}
-
-.score-progress {
-	height: 100%;
-	background: #333;
-	border-radius: 3rpx;
-	transition: width 0.3s ease;
-}
-
-.delete-btn {
-	border-radius: 20rpx;
-	transition: all 0.3s ease;
-}
-
-.delete-btn:active {
-	background: #f8f8f8;
-}
-
-.delete-icon {
-	font-size: 32rpx;
-	color: #999;
-}
-
-.empty-state {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	height: 200rpx;
-	background: #f8f8f8;
-	border-radius: 16rpx;
-	margin-top: 40rpx;
-}
-
-.empty-text {
-	font-size: 26rpx;
-	color: #999;
-}
-
-@keyframes slideIn {
-	from {
-		opacity: 0;
-		transform: translateY(20rpx);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-.animate-in {
-	animation: slideIn 0.5s ease forwards;
+	font-weight: 600;
 }
 
 .confirm-btn {
-	width: 100%;
-	height: 100rpx;
-	background: #333;
+	background: linear-gradient(135deg, #818cf8 0%, #8b5cf6 100%);
+	border: none;
 	color: #fff;
-	border-radius: 16rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	padding: 24rpx 48rpx;
+	border-radius: 12rpx;
 	font-size: 32rpx;
-	position: fixed;
-	bottom: 40rpx;
-	left: 30rpx;
-	right: 30rpx;
-	width: auto;
-	opacity: 1;
+	margin-top: 60rpx;
+	box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.2);
 	transition: all 0.3s ease;
 }
 
-.confirm-btn.disabled {
-	opacity: 0.6;
-	background: #999;
-}
-
-button::after {
-	border: none;
-}
-
-.action-btns {
-	display: flex;
-	gap: 20rpx;
-}
-
-.action-btn {
-	width: 60rpx;
-	height: 60rpx;
-	background: #f8f8f8;
-	border-radius: 30rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.action-icon {
-	font-size: 36rpx;
-	color: #333;
-}
-
-.action-text {
-	font-size: 24rpx;
-	color: #333;
-	font-weight: bold;
+.confirm-btn:active {
+	transform: scale(0.98);
 }
 
 .modal {
@@ -650,9 +754,10 @@ button::after {
 	left: 50%;
 	transform: translate(-50%, -50%);
 	width: 600rpx;
-	background: #fff;
-	border-radius: 20rpx;
+	background: #ffffff;
+	border-radius: 12rpx;
 	padding: 40rpx;
+	box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.1);
 }
 
 .modal-title {
@@ -660,7 +765,7 @@ button::after {
 	font-weight: bold;
 	color: #333;
 	text-align: center;
-	margin-bottom: 40rpx;
+	margin-bottom: 30rpx;
 }
 
 .input-group {
@@ -668,10 +773,11 @@ button::after {
 }
 
 .modal-input {
-	height: 80rpx;
-	background: #f8f8f8;
-	border-radius: 12rpx;
-	padding: 0 20rpx;
+	background: #f5f5f5;
+	border: 1px solid rgba(99, 102, 241, 0.1);
+	color: #333;
+	border-radius: 8rpx;
+	padding: 20rpx;
 	margin-bottom: 20rpx;
 }
 
@@ -731,12 +837,17 @@ button::after {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #333;
+	color: #6366f1;
 }
 
 @keyframes spin {
-	0% { transform: rotate(0deg); }
-	100% { transform: rotate(360deg); }
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
 }
 
 .score-input-wrap {
@@ -760,4 +871,118 @@ button::after {
 	font-size: 24rpx;
 	color: #666;
 }
-</style> 
+
+/* 滑块样式优化 */
+.score-slider {
+	margin-top: 20rpx;
+}
+
+.score-slider slider {
+	margin: 0;
+	width: 100%;
+}
+
+.score-slider .uni-slider-handle {
+	width: 28rpx;
+	height: 28rpx;
+	background: #8b5cf6;
+}
+
+.score-slider .uni-slider-track {
+	background: linear-gradient(to right, #818cf8, #8b5cf6);
+}
+
+/* 总分统计样式 */
+.total-score {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 24rpx 30rpx;
+	background: linear-gradient(to right, rgba(129, 140, 248, 0.05), rgba(139, 92, 246, 0.05));
+	border-radius: 12rpx;
+	margin-bottom: 30rpx;
+	border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.total-label {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.total-value {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333;
+	background: linear-gradient(135deg, #818cf8 0%, #8b5cf6 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.total-value.warning {
+	color: #ef4444;
+	background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.total-value.success {
+	color: #10b981;
+	background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+/* 优化滑块样式 */
+.wx-slider-handle {
+	width: 28rpx !important;
+	height: 28rpx !important;
+	background: #8b5cf6 !important;
+	border: 2rpx solid #fff !important;
+	box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1) !important;
+}
+
+.wx-slider-track {
+	background: linear-gradient(to right, #818cf8, #8b5cf6) !important;
+}
+
+/* 保存遮罩 */
+.save-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.save-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20rpx;
+}
+
+.loading-icon {
+	width: 80rpx;
+	height: 80rpx;
+	border: 4rpx solid rgba(99, 102, 241, 0.1);
+	border-top-color: #8b5cf6;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+}
+
+.save-tip {
+	font-size: 28rpx;
+	color: #666;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+</style>

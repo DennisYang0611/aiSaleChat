@@ -1,23 +1,28 @@
 <template>
 	<view class="container">
-		<view class="content-wrapper">
-			<!-- 顶部导航 -->
+		<!-- 固定的顶部导航 -->
+		<view class="fixed-header">
 			<view class="header">
 				<view class="back-btn" @tap="handleBack">
 					<text class="back-icon">←</text>
 				</view>
-				<text class="header-title">创建一个Agent</text>
-				<view class="ai-btn" @tap="handleAIGenerate" :class="{ 'generating': isLoading }">
+				<text class="header-title">创建训练场景</text>
+				<view class="ai-btn" @tap="handleAIGenerate">
 					<text class="ai-text" v-if="!isLoading">AI生成</text>
 				</view>
 			</view>
+		</view>
 
+		<!-- 内容区域 -->
+		<view class="content-wrapper">
 			<!-- 头像区域 -->
 			<view class="avatar-area">
 				<view class="avatar-wrapper" @tap="handleUploadAvatar">
 					<default-avatar></default-avatar>
 					<view class="upload-mask">
-						<view class="upload-icon">+</view>
+						<view class="upload-icon">
+							<image src="/static/icons/camera.png" mode="aspectFit"></image>
+						</view>
 						<text class="upload-text">上传头像</text>
 					</view>
 				</view>
@@ -25,46 +30,60 @@
 
 			<!-- 表单区域 -->
 			<view class="form-area">
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.name"
-					placeholder="输入机器人的名字"
-				/>
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.scene"
-					placeholder="输入对话的场景"
-				/>
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.customerProfile"
-					placeholder="输入客户画像"
-				/>
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.buyingPower"
-					placeholder="输入购买能力"
-				/>
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.consumptionHabits"
-					placeholder="输入消费习惯"
-				/>
-				<input 
-					class="input-box" 
-					type="text" 
-					v-model="formData.consumptionConcepts"
-					placeholder="输入消费理念"
-				/>
+				<view class="form-group">
+					<text class="form-label">基本信息</text>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.name"
+						placeholder="给AI助手起个名字"
+					/>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.scene"
+						placeholder="设定对话场景（如：手机销售）"
+					/>
+				</view>
+
+				<view class="form-group">
+					<text class="form-label">客户画像</text>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.customerProfile"
+						placeholder="描述目标客户特征"
+					/>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.buyingPower"
+						placeholder="客户购买能力"
+					/>
+				</view>
+
+				<view class="form-group">
+					<text class="form-label">消费特征</text>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.consumptionHabits"
+						placeholder="客户消费习惯"
+					/>
+					<input
+						class="input-box"
+						type="text"
+						v-model="formData.consumptionConcepts"
+						placeholder="客户消费理念"
+					/>
+				</view>
 			</view>
 
 			<!-- 提交按钮 -->
-			<button class="submit-btn" @tap="handleSubmit">生成提示词</button>
+			<button class="submit-btn" @tap="handleSubmit">
+				<text class="btn-text">开始创建</text>
+				<text class="btn-icon">→</text>
+			</button>
 		</view>
 
 		<!-- AI生成遮罩层 -->
@@ -81,6 +100,40 @@
 				<view class="generating-text">
 					<text class="main-text">AI思考中</text>
 					<view class="dots-flow">
+						<text class="dot"></text>
+						<text class="dot"></text>
+						<text class="dot"></text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- AI生成加载遮罩 -->
+		<view class="ai-loading-mask" v-if="isLoading">
+			<view class="ai-loading-content">
+				<!-- AI大脑动画 -->
+				<view class="ai-brain">
+					<view class="brain-core"></view>
+					<view class="brain-waves">
+						<view class="wave"></view>
+						<view class="wave"></view>
+						<view class="wave"></view>
+					</view>
+					<!-- 神经元连接动画 -->
+					<view class="neurons">
+						<view class="neuron n1"></view>
+						<view class="neuron n2"></view>
+						<view class="neuron n3"></view>
+						<view class="neuron n4"></view>
+						<view class="connection c1"></view>
+						<view class="connection c2"></view>
+						<view class="connection c3"></view>
+					</view>
+				</view>
+				<!-- 加载文字 -->
+				<view class="loading-text">
+					<text class="main-text">AI正在思考</text>
+					<view class="dot-flow">
 						<text class="dot"></text>
 						<text class="dot"></text>
 						<text class="dot"></text>
@@ -134,9 +187,9 @@ export default Vue.extend({
 		handleBack() {
 			uni.navigateBack();
 		},
-		handleAIGenerate() {
+		async handleAIGenerate() {
 			this.isLoading = true;
-			
+
 			// 准备请求数据
 			const requestData = {
 				chatId: Math.random().toString(36).substring(7),
@@ -158,7 +211,7 @@ export default Vue.extend({
 					}
 				]
 			};
-			
+
 			// 发起请求
 			uni.request({
 				url: 'https://api.fastgpt.in/api/v1/chat/completions',
@@ -174,13 +227,13 @@ export default Vue.extend({
 						const response = res.data as AIResponse;
 						const content = response.choices[0].message.content;
 						const parsedContent = JSON.parse(content);
-						
+
 						// 更新表单数据
 						this.formData = {
 							...this.formData,
 							...parsedContent
 						};
-						
+
 						uni.showToast({
 							title: 'AI生成成功',
 							icon: 'success'
@@ -206,7 +259,7 @@ export default Vue.extend({
 		handleSubmit() {
 			// 保存表单数据到本地存储
 			uni.setStorageSync('agentFormData', this.formData);
-			
+
 			uni.navigateTo({
 				url: '/pages/loading/index'
 			});
@@ -233,31 +286,25 @@ export default Vue.extend({
 <style>
 .container {
 	min-height: 100vh;
-	background-color: #fff;
+	background: linear-gradient(180deg, #f6f7fb 0%, #ffffff 100%);
 	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
 }
 
-.content-wrapper {
-	display: flex;
-	flex-direction: column;
-	min-height: 100%;
-	width: 100%;
-	padding: 0 40rpx;
-	box-sizing: border-box;
-	max-width: 800rpx;
+.fixed-header {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 100;
+	background: rgba(255, 255, 255, 0.98);
+	box-shadow: 0 2rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 
 .header {
+	padding: 88rpx 30rpx 20rpx;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 40rpx 0;
-	margin-bottom: 40rpx;
-	flex-shrink: 0;
 }
 
 .back-btn {
@@ -274,32 +321,92 @@ export default Vue.extend({
 
 .header-title {
 	font-size: 36rpx;
-	font-weight: bold;
+	font-weight: 600;
 	color: #333;
 }
 
 .ai-btn {
-	padding: 12rpx 24rpx;
-	background: linear-gradient(45deg, #333, #666);
-	border-radius: 30rpx;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	min-width: 160rpx;
-	position: relative;
-	overflow: hidden;
-	transition: all 0.3s ease;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-}
-
-.ai-btn.generating {
-	opacity: 0.7;
-	pointer-events: none;
+	padding: 10rpx 24rpx;
+	background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+	border-radius: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.2);
+	transform: scale(0.95);
 }
 
 .ai-text {
-	color: #FFFFFF;
+	color: #fff;
+	font-size: 26rpx;
+	font-weight: 500;
+	letter-spacing: 1px;
+}
+
+.ai-btn:active {
+	transform: scale(0.9);
+	transition: transform 0.2s ease;
+}
+
+.content-wrapper {
+	padding: 180rpx 40rpx 40rpx;
+}
+
+.form-group {
+	margin-bottom: 40rpx;
+}
+
+.form-label {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 20rpx;
+	display: block;
+}
+
+.input-box {
+	width: 100%;
+	height: 100rpx;
+	background: #fff;
+	border-radius: 16rpx;
+	padding: 0 30rpx;
+	margin-bottom: 20rpx;
 	font-size: 28rpx;
+	border: 2rpx solid #eef0f6;
+	transition: all 0.3s ease;
+}
+
+.input-box:focus {
+	border-color: #6366f1;
+	box-shadow: 0 0 0 2rpx rgba(99, 102, 241, 0.1);
+}
+
+.submit-btn {
+	width: 100%;
+	height: 100rpx;
+	background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+	border-radius: 16rpx;
+	color: #fff;
+	font-size: 32rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 60rpx;
+	box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.2);
+	transition: all 0.3s ease;
+}
+
+.submit-btn:active {
+	transform: scale(0.98);
+	box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.15);
+}
+
+.btn-text {
+	margin-right: 12rpx;
+}
+
+.btn-icon {
+	font-size: 32rpx;
+	font-weight: bold;
 }
 
 .avatar-area {
@@ -318,183 +425,6 @@ export default Vue.extend({
 	width: 100%;
 	min-height: 0;
 	overflow-y: auto;
-}
-
-.input-box {
-	width: 100%;
-	height: 100rpx;
-	background: #F8F8F8;
-	border: none;
-	border-radius: 16rpx;
-	padding: 0 30rpx;
-	font-size: 32rpx;
-	transition: all 0.3s ease;
-	box-sizing: border-box;
-}
-
-.input-box:focus {
-	background: #fff;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-	transform: translateY(-2rpx);
-}
-
-.submit-btn {
-	width: 100%;
-	height: 100rpx;
-	background: linear-gradient(45deg, #333, #666);
-	border-radius: 16rpx;
-	color: #FFFFFF;
-	font-size: 32rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
-	transition: all 0.3s ease;
-	margin-top: 60rpx;
-	margin-bottom: 40rpx;
-	flex-shrink: 0;
-}
-
-.submit-btn:active {
-	transform: translateY(2rpx);
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
-}
-
-button::after {
-	border: none;
-}
-
-.generating-mask {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.7);
-	backdrop-filter: blur(8px);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 999;
-}
-
-.generating-content {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 40rpx;
-}
-
-.brain-animation {
-	width: 200rpx;
-	height: 200rpx;
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.brain-circle {
-	width: 80rpx;
-	height: 80rpx;
-	background: #fff;
-	border-radius: 50%;
-	animation: pulse 2s ease-in-out infinite;
-}
-
-.brain-waves {
-	position: absolute;
-	width: 100%;
-	height: 100%;
-}
-
-.wave {
-	position: absolute;
-	border: 4rpx solid rgba(255, 255, 255, 0.5);
-	border-radius: 50%;
-	width: 100%;
-	height: 100%;
-	animation: wave 3s ease-out infinite;
-	opacity: 0;
-}
-
-.wave:nth-child(2) {
-	animation-delay: 1s;
-}
-
-.wave:nth-child(3) {
-	animation-delay: 2s;
-}
-
-.generating-text {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 12rpx;
-}
-
-.main-text {
-	color: #fff;
-	font-size: 36rpx;
-	font-weight: 500;
-}
-
-.dots-flow {
-	display: flex;
-	gap: 12rpx;
-}
-
-.dots-flow .dot {
-	width: 12rpx;
-	height: 12rpx;
-	background: #fff;
-	border-radius: 50%;
-	animation: dotFlow 1.5s ease-in-out infinite;
-}
-
-.dots-flow .dot:nth-child(2) {
-	animation-delay: 0.5s;
-}
-
-.dots-flow .dot:nth-child(3) {
-	animation-delay: 1s;
-}
-
-@keyframes pulse {
-	0% {
-		transform: scale(0.95);
-		box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
-	}
-	70% {
-		transform: scale(1);
-		box-shadow: 0 0 0 20rpx rgba(255, 255, 255, 0);
-	}
-	100% {
-		transform: scale(0.95);
-		box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-	}
-}
-
-@keyframes wave {
-	0% {
-		transform: scale(0);
-		opacity: 1;
-	}
-	100% {
-		transform: scale(1);
-		opacity: 0;
-	}
-}
-
-@keyframes dotFlow {
-	0%, 100% {
-		transform: translateY(0);
-		opacity: 0.5;
-	}
-	50% {
-		transform: translateY(-10rpx);
-		opacity: 1;
-	}
 }
 
 .avatar-wrapper {
@@ -582,8 +512,6 @@ button::after {
 	.submit-btn {
 		height: 100rpx;
 		font-size: 32rpx;
-		margin-top: 40rpx;
-		margin-bottom: 30rpx;
 		background: linear-gradient(45deg, #2c2c2c, #4a4a4a);
 	}
 }
@@ -675,4 +603,205 @@ button::after {
 		margin-bottom: 20rpx;
 	}
 }
-</style> 
+
+/* 适配 iPhone 刘海屏 */
+@supports (padding-top: constant(safe-area-inset-top)) {
+	.header {
+		padding-top: calc(88rpx + constant(safe-area-inset-top));
+	}
+	.content-wrapper {
+		padding-top: calc(180rpx + constant(safe-area-inset-top));
+	}
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+	.header {
+		padding-top: calc(88rpx + env(safe-area-inset-top));
+	}
+	.content-wrapper {
+		padding-top: calc(180rpx + env(safe-area-inset-top));
+	}
+}
+
+/* AI加载遮罩样式 */
+.ai-loading-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.98);
+	backdrop-filter: blur(10px);
+	z-index: 999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ai-loading-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 40rpx;
+}
+
+/* AI大脑动画 */
+.ai-brain {
+	width: 240rpx;
+	height: 240rpx;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.brain-core {
+	width: 80rpx;
+	height: 80rpx;
+	background: linear-gradient(135deg, #6366f1, #8b5cf6);
+	border-radius: 50%;
+	animation: pulse 2s ease-in-out infinite;
+}
+
+.brain-waves {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.wave {
+	position: absolute;
+	border: 4rpx solid rgba(99, 102, 241, 0.3);
+	border-radius: 50%;
+	width: 100%;
+	height: 100%;
+	animation: wave 3s ease-out infinite;
+	opacity: 0;
+}
+
+.wave:nth-child(2) {
+	animation-delay: 1s;
+}
+
+.wave:nth-child(3) {
+	animation-delay: 2s;
+}
+
+/* 神经元动画 */
+.neurons {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.neuron {
+	position: absolute;
+	width: 12rpx;
+	height: 12rpx;
+	background: #6366f1;
+	border-radius: 50%;
+	animation: glow 1.5s ease-in-out infinite;
+}
+
+.connection {
+	position: absolute;
+	height: 2rpx;
+	background: linear-gradient(90deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3));
+	transform-origin: left center;
+	animation: connect 2s ease-in-out infinite;
+}
+
+/* 加载文字样式 */
+.loading-text {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+}
+
+.main-text {
+	font-size: 32rpx;
+	color: #333;
+	font-weight: 500;
+}
+
+.dot-flow {
+	display: flex;
+	gap: 8rpx;
+}
+
+.dot {
+	width: 8rpx;
+	height: 8rpx;
+	background: #6366f1;
+	border-radius: 50%;
+	animation: dotFlow 1.5s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+	animation-delay: 0.5s;
+}
+
+.dot:nth-child(3) {
+	animation-delay: 1s;
+}
+
+/* 动画关键帧 */
+@keyframes pulse {
+	0% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+	}
+	70% {
+		transform: scale(1);
+		box-shadow: 0 0 0 20rpx rgba(99, 102, 241, 0);
+	}
+	100% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+	}
+}
+
+@keyframes wave {
+	0% {
+		transform: scale(0);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 0;
+	}
+}
+
+@keyframes glow {
+	0%, 100% {
+		opacity: 0.3;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.2);
+	}
+}
+
+@keyframes connect {
+	0%, 100% {
+		opacity: 0.3;
+		transform: scaleX(0.8);
+	}
+	50% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+}
+
+@keyframes dotFlow {
+	0%, 100% {
+		transform: translateY(0);
+		opacity: 0.5;
+	}
+	50% {
+		transform: translateY(-6rpx);
+		opacity: 1;
+	}
+}
+</style>

@@ -1,4 +1,4 @@
- <template>
+<template>
 	<view class="container">
 		<!-- 顶部导航 -->
 		<view class="header">
@@ -61,6 +61,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
+import { request } from '@/utils/request';
 
 export default Vue.extend({
 	components: {
@@ -74,24 +75,90 @@ export default Vue.extend({
 				phone: '',
 				gender: '',
 				birth: '',
-					address: ''
+				address: ''
+			},
+			id: ''
+		}
+	},
+	async onLoad(options) {
+		this.id = options?.id;
+		
+		if(!this.id) {
+			uni.showToast({
+				title: '用户ID不存在',
+				icon: 'none'
+			});
+			return;
+		}
+
+		try {
+			// 获取用户详细信息
+			const res = await request<any>({
+				url: `/user/${this.id}`,
+				method: 'GET'
+			});
+
+			if(res.data) {
+				this.formData = {
+					name: res.data.name || '',
+					email: res.data.email || '',
+					phone: res.data.phone || '',
+					gender: res.data.gender || '',
+					birth: res.data.birth || '',
+					address: res.data.address || ''
+				};
 			}
+		} catch(error) {
+			console.error('获取用户信息失败:', error);
+			uni.showToast({
+				title: '获取用户信息失败',
+				icon: 'none'
+			});
 		}
 	},
 	methods: {
 		handleBack() {
 			uni.navigateBack();
 		},
-		handleSave() {
-			console.log('保存个人信息', this.formData);
-			uni.showToast({
-				title: '保存成功',
-				icon: 'success',
-				duration: 2000
-			});
-			setTimeout(() => {
-				uni.navigateBack();
-			}, 2000);
+		async handleSave() {
+			try {
+				if (!this.id) {
+					throw new Error('用户信息不存在');
+				}
+				await request({
+					url: `/user/${this.id}`,
+					method: 'PATCH',
+					data: {
+						name: this.formData.name,
+						email: this.formData.email,
+						phone: this.formData.phone,
+						gender: this.formData.gender,
+						birth: this.formData.birth,
+						address: this.formData.address
+					}
+				});
+				
+				uni.showToast({
+					title: '保存成功',
+					icon: 'success'
+				});
+				
+				// 更新本地存储的用户信息
+				const userInfo = uni.getStorageSync('userInfo');
+				uni.setStorageSync('userInfo', {
+					...userInfo,
+					...this.formData
+				});
+				
+				setTimeout(() => {
+					uni.navigateBack();
+				}, 1500);
+			} catch (error: any) {
+				uni.showToast({
+					title: error.message || '保存失败',
+					icon: 'none'
+				});
+			}
 		}
 	}
 });

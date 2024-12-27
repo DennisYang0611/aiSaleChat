@@ -1,12 +1,18 @@
-import { Hono } from "hono";
+import { Hono, Context } from "hono";
 import { failRes, listRes, successRes } from "~/common/res";
 import { Agents, UserAgents, Users } from "~/db/schema";
-import { db, eq, inArray, count } from "~/db";
+import { db, eq, count } from "~/db";
 import { zValidator } from "@hono/zod-validator";
 import { paramSchema, pageSchema } from "~/common/zodSchema";
 import { z } from "zod";
 
 const router = new Hono();
+
+router.get("/api/user/info", async (c: Context) => {
+  const user = c.get("user");
+  const { password: _, ...userWithoutPassword } = user;
+  return c.json(successRes(userWithoutPassword));
+});
 
 router.get("/api/user", zValidator("query", pageSchema), async (c) => {
   const { page, pageSize } = c.req.valid("query");
@@ -19,8 +25,18 @@ router.get("/api/user", zValidator("query", pageSchema), async (c) => {
   return c.json(listRes(user, total, page, pageSize));
 });
 
+// 获取单个用户信息
+router.get("/api/user/:id", zValidator("param", paramSchema), async (c) => {
+  const id = c.req.valid("param").id;
+  const user = await db.select().from(Users).where(eq(Users.id, id)).limit(1);
+  if (!user.length) {
+    return c.json(failRes("用户不存在"));
+  }
+  return c.json(successRes(user[0]));
+});
+
 // 更新用户信息
-router.patch("/api/user/:id", zValidator("param", paramSchema), async (c) => {
+router.put("/api/user/:id", zValidator("param", paramSchema), async (c) => {
   const id = c.req.valid("param").id;
   const data = await c.req.json();
   const user = await db

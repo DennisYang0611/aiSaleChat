@@ -1,30 +1,59 @@
 <template>
 	<view class="container">
-		<view class="loading-area">
-			<!-- 动态 Logo -->
-			<view class="dynamic-logo">
-				<view class="orbit">
-					<view class="dot dot1 animate-dot"></view>
-					<view class="dot dot2 animate-dot"></view>
-					<view class="dot dot3 animate-dot"></view>
-					<view class="dot dot4 animate-dot"></view>
-					<view class="circle-line"></view>
+		<!-- 背景粒子效果 -->
+		<view class="particles">
+			<view v-for="n in 20" :key="n" class="particle"></view>
+		</view>
+
+		<view class="loading-content">
+			<!-- AI大脑动画 -->
+			<view class="ai-brain">
+				<view class="brain-core">
+					<!-- 内部能量脉冲 -->
+					<view class="energy-pulse"></view>
+				</view>
+				<view class="brain-waves">
+					<view class="wave"></view>
+					<view class="wave"></view>
+					<view class="wave"></view>
+				</view>
+				<!-- 神经元连接动画 -->
+				<view class="neurons">
+					<view class="neuron n1"></view>
+					<view class="neuron n2"></view>
+					<view class="neuron n3"></view>
+					<view class="neuron n4"></view>
+					<view class="neuron n5"></view>
+					<view class="neuron n6"></view>
+					<view class="connection c1"></view>
+					<view class="connection c2"></view>
+					<view class="connection c3"></view>
+					<view class="connection c4"></view>
+					<view class="connection c5"></view>
+					<!-- 能量光束效果 -->
+					<view class="energy-beam"></view>
 				</view>
 			</view>
-			
+
 			<!-- 文字提示 -->
 			<view class="text-area">
-				<text class="title">稍等片刻......</text>
-				<text class="subtitle">AI 提示词马上出炉</text>
+				<text class="title">AI正在思考</text>
+				<text class="subtitle">正在为您生成专业的提示词</text>
+				<view class="dot-flow">
+					<text class="dot"></text>
+					<text class="dot"></text>
+					<text class="dot"></text>
+				</view>
 			</view>
 		</view>
-		
+
 		<!-- 取消按钮 -->
-		<button class="cancel-btn" @tap="handleCancel">取消</button>
+		<!-- <button class="cancel-btn" @tap="handleCancel">取消</button> -->
 	</view>
 </template>
 
 <script lang="ts">
+import { request } from '@/utils/request';
 import Vue from 'vue';
 
 interface AIResponse {
@@ -51,7 +80,7 @@ export default Vue.extend({
 			promptText: '',
 		}
 	},
-	onLoad(options) {
+	async onLoad(options) {
 		const formData = uni.getStorageSync('agentFormData');
 		if (!formData) {
 			this.handleError('未获取到表单数据');
@@ -80,6 +109,8 @@ export default Vue.extend({
 			]
 		};
 
+
+
 		// 发起请求
 		uni.request({
 			url: 'https://api.fastgpt.in/api/v1/chat/completions',
@@ -89,14 +120,30 @@ export default Vue.extend({
 				'Content-Type': 'application/json'
 			},
 			data: requestData,
-			success: (res: UniApp.RequestSuccessCallbackResult) => {
+			success: async (res: UniApp.RequestSuccessCallbackResult) => {
 				try {
 					const response = res.data as AIResponse;
 					this.promptText = response.choices[0].message.content;
-					
+
 					// 存储生成的提示词
 					uni.setStorageSync('generatedPrompt', this.promptText);
-					
+
+
+					// 发起创建 agent 请求
+					const agentInfo = await request<{ data: any[] }>({
+						url: '/agent',
+						method: 'POST',
+						data: {
+							creatorId: 'fe9d6b54-40d7-4d56-a3b1-50c21feeeb41',
+							name: formData.name,
+							prompt: formData,
+							avatar: 'https://lslkgpcf.cloud.sealos.io/logo.png',
+							promptText: this.promptText,
+							ratingDimensions: {}
+						},
+					});
+					uni.setStorageSync('agentId', agentInfo?.data[0].id);
+
 					// 跳转到成功页面
 					this.navigateToSuccess();
 				} catch (error) {
@@ -130,63 +177,88 @@ export default Vue.extend({
 <style>
 .container {
 	min-height: 100vh;
-	background-color: #fff;
+	background: linear-gradient(135deg, #f6f7fb 0%, #ffffff 100%);
 	display: flex;
-	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 0 40rpx;
 }
 
-.loading-area {
+.loading-content {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	gap: 60rpx;
 }
 
-.dynamic-logo {
+.ai-brain {
 	width: 300rpx;
 	height: 300rpx;
 	position: relative;
-	margin-bottom: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.orbit {
-	width: 100%;
-	height: 100%;
-	position: relative;
-	animation: orbit-rotate 8s linear infinite;
-}
-
-.circle-line {
-	position: absolute;
-	width: 100%;
-	height: 100%;
-	border: 4rpx solid #000;
+.brain-core {
+	width: 100rpx;
+	height: 100rpx;
+	background: linear-gradient(135deg, #6366f1, #8b5cf6);
 	border-radius: 50%;
-	top: 0;
-	left: 0;
 	animation: pulse 2s ease-in-out infinite;
+	position: relative;
+	overflow: hidden;
 }
 
-.dot {
+.brain-waves {
 	position: absolute;
-	width: 24rpx;
-	height: 24rpx;
-	background-color: #000;
-	border-radius: 50%;
+	width: 100%;
+	height: 100%;
 }
 
-.dot1 { top: 0; left: 50%; transform: translateX(-50%); }
-.dot2 { right: 0; top: 50%; transform: translateY(-50%); }
-.dot3 { bottom: 0; left: 50%; transform: translateX(-50%); }
-.dot4 { left: 0; top: 50%; transform: translateY(-50%); }
+.wave {
+	position: absolute;
+	border: 4rpx solid rgba(99, 102, 241, 0.3);
+	border-radius: 50%;
+	width: 100%;
+	height: 100%;
+	animation: wave 3s ease-out infinite;
+	opacity: 0;
+}
 
-.animate-dot {
-	animation: dot-pulse 2s ease-in-out infinite;
+.wave:nth-child(2) {
+	animation-delay: 1s;
+}
+
+.wave:nth-child(3) {
+	animation-delay: 2s;
+}
+
+.neurons {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.neuron {
+	position: absolute;
+	width: 12rpx;
+	height: 12rpx;
+	background: #6366f1;
+	border-radius: 50%;
+	animation: glow 1.5s ease-in-out infinite, neuronFloat 8s ease-in-out infinite;
+	box-shadow: 0 0 20rpx rgba(99, 102, 241, 0.6);
+}
+
+.connection {
+	position: absolute;
+	height: 2rpx;
+	background: linear-gradient(90deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3));
+	transform-origin: left center;
+	animation: connect 2s ease-in-out infinite;
 }
 
 .text-area {
+	text-align: center;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -194,77 +266,213 @@ export default Vue.extend({
 }
 
 .title {
-	font-size: 36rpx;
+	font-size: 40rpx;
+	font-weight: 600;
 	color: #333;
-	font-weight: 500;
 }
 
 .subtitle {
 	font-size: 28rpx;
 	color: #666;
+	font-weight: 400;
 }
 
-.cancel-btn {
-	position: fixed;
-	bottom: 40rpx;
-	left: 40rpx;
-	right: 40rpx;
-	height: 100rpx;
-	background: #333;
-	color: #fff;
-	border-radius: 16rpx;
+.dot-flow {
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 32rpx;
+	gap: 12rpx;
+	margin-top: 20rpx;
 }
 
-button::after {
-	border: none;
+.dot {
+	width: 12rpx;
+	height: 12rpx;
+	background: #6366f1;
+	border-radius: 50%;
+	animation: dotFlow 1.5s ease-in-out infinite;
 }
 
-@keyframes orbit-rotate {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
+.dot:nth-child(2) {
+	animation-delay: 0.5s;
 }
 
-@keyframes dot-pulse {
-	0% {
-		transform: scale(1);
-		opacity: 0.8;
-	}
-	50% {
-		transform: scale(1.5);
-		opacity: 1;
-	}
-	100% {
-		transform: scale(1);
-		opacity: 0.8;
-	}
+.dot:nth-child(3) {
+	animation-delay: 1s;
 }
 
+/* 动画关键帧 */
 @keyframes pulse {
 	0% {
-		transform: scale(1);
-		opacity: 0.5;
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7),
+					inset 0 0 20rpx rgba(255, 255, 255, 0.5);
 	}
-	50% {
-		transform: scale(1.1);
+	70% {
+		transform: scale(1);
+		box-shadow: 0 0 30rpx rgba(99, 102, 241, 0.7),
+					inset 0 0 40rpx rgba(255, 255, 255, 0.8);
+	}
+	100% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0),
+					inset 0 0 20rpx rgba(255, 255, 255, 0.5);
+	}
+}
+
+@keyframes wave {
+	0% {
+		transform: scale(0);
 		opacity: 1;
 	}
 	100% {
 		transform: scale(1);
-		opacity: 0.5;
+		opacity: 0;
 	}
 }
 
-/* 让每个点的动画有不同的延迟，创造波浪效果 */
-.dot1 { animation-delay: 0s; }
-.dot2 { animation-delay: 0.5s; }
-.dot3 { animation-delay: 1s; }
-.dot4 { animation-delay: 1.5s; }
-</style> 
+@keyframes glow {
+	0%, 100% {
+		opacity: 0.3;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.2);
+	}
+}
+
+@keyframes connect {
+	0%, 100% {
+		opacity: 0.3;
+		transform: scaleX(0.8);
+	}
+	50% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+}
+
+@keyframes dotFlow {
+	0%, 100% {
+		transform: translateY(0);
+		opacity: 0.5;
+	}
+	50% {
+		transform: translateY(-6rpx);
+		opacity: 1;
+	}
+}
+
+/* 背景粒子动画 */
+.particles {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.particle {
+	position: absolute;
+	width: 4rpx;
+	height: 4rpx;
+	background: rgba(99, 102, 241, 0.3);
+	border-radius: 50%;
+	animation: particleFloat 15s linear infinite;
+}
+
+/* 随机分布粒子 */
+.particle:nth-child(3n) {
+	width: 6rpx;
+	height: 6rpx;
+	animation-duration: 20s;
+}
+
+.particle:nth-child(3n + 1) {
+	width: 8rpx;
+	height: 8rpx;
+	animation-duration: 25s;
+}
+
+/* 内部能量脉冲 */
+.energy-pulse {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 150%;
+	height: 150%;
+	background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+	transform: translate(-50%, -50%);
+	animation: energyPulse 3s ease-in-out infinite;
+}
+
+/* 能量光束 */
+.energy-beam {
+	position: absolute;
+	width: 2rpx;
+	background: linear-gradient(to top, rgba(99, 102, 241, 0), rgba(99, 102, 241, 0.8), rgba(99, 102, 241, 0));
+	animation: beamMove 4s ease-in-out infinite;
+}
+
+/* 定位神经元 */
+.n1 { top: 20%; left: 20%; animation-delay: 0s, 1s; }
+.n2 { top: 30%; right: 25%; animation-delay: 0.3s, 2s; }
+.n3 { bottom: 25%; right: 20%; animation-delay: 0.6s, 3s; }
+.n4 { bottom: 30%; left: 25%; animation-delay: 0.9s, 4s; }
+.n5 { top: 50%; right: 15%; animation-delay: 1.2s, 5s; }
+.n6 { bottom: 40%; left: 15%; animation-delay: 1.5s, 6s; }
+
+/* 新增动画关键帧 */
+@keyframes particleFloat {
+	0% {
+		transform: translate(0, 0);
+		opacity: 0;
+	}
+	50% {
+		opacity: 0.8;
+	}
+	100% {
+		transform: translate(100vw, -100vh);
+		opacity: 0;
+	}
+}
+
+@keyframes energyPulse {
+	0%, 100% {
+		opacity: 0.3;
+		transform: translate(-50%, -50%) scale(0.8);
+	}
+	50% {
+		opacity: 0.6;
+		transform: translate(-50%, -50%) scale(1.2);
+	}
+}
+
+@keyframes beamMove {
+	0% {
+		height: 0;
+		opacity: 0;
+		transform: rotate(45deg) translateX(-50%);
+	}
+	50% {
+		height: 200rpx;
+		opacity: 1;
+		transform: rotate(45deg) translateX(0);
+	}
+	100% {
+		height: 0;
+		opacity: 0;
+		transform: rotate(45deg) translateX(50%);
+	}
+}
+
+@keyframes neuronFloat {
+	0%, 100% {
+		transform: translate(0, 0);
+	}
+	50% {
+		transform: translate(10rpx, -10rpx);
+	}
+}
+</style>

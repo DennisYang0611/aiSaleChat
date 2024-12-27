@@ -3,15 +3,18 @@ import { Hono } from "hono";
 import userRouter from "./routes/user";
 import authRouter from "./routes/auth";
 import agentRouter from "./routes/agent";
-import trainingRouter from "./routes/tranning";
+import trainingRouter from "./routes/tranning_record";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { successRes } from "~/common/res";
+import { userAuth } from "~/middleware/user_auth";
 const app = new Hono();
 
 app.get("/", (c) => {
   return c.json(successRes("Hello World"));
 });
+
+app.use("/api/*", userAuth);
 
 app.use("/api/*", cors());
 app.use("/api/*", logger());

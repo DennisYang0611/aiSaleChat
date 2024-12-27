@@ -41,6 +41,7 @@ router.post("/api/auth/login", zValidator("json", loginSchema), async (c) => {
     code: 0,
     data: {
       user: userWithoutPassword,
+      token,
     },
     message: "登录成功",
   });

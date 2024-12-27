@@ -3,23 +3,20 @@
 		<view class="header">
 			<text class="title">选择评分维度</text>
 		</view>
-		
+
 		<view class="dimensions-list">
-			<view 
-				v-for="(dimension, index) in selectedDimensions" 
-				:key="index"
-				class="dimension-item"
-			>
+			<view v-for="(dimension, index) in selectedDimensions" :key="index" class="dimension-item">
 				<text class="dimension-name">{{ dimension.keyword }}</text>
 				<text class="dimension-score">{{ dimension.score }}分</text>
 			</view>
 		</view>
-		
+
 		<button class="confirm-btn" @tap="handleConfirm">确认</button>
 	</view>
 </template>
 
 <script lang="ts">
+import { request } from '@/utils/request';
 import Vue from 'vue';
 
 interface Dimension {
@@ -57,7 +54,7 @@ export default Vue.extend({
 		}
 	},
 	methods: {
-		handleConfirm() {
+		async handleConfirm() {
 			// 检查是否有维度
 			if (this.selectedDimensions.length === 0) {
 				uni.showToast({
@@ -73,6 +70,8 @@ export default Vue.extend({
 					promptText: this.promptText,
 					dimensions: this.selectedDimensions
 				});
+
+
 
 				uni.redirectTo({
 					url: '/pages/evaluation/index'
@@ -146,4 +145,4 @@ export default Vue.extend({
 	font-size: 32rpx;
 	margin-top: auto;
 }
-</style> 
+</style>

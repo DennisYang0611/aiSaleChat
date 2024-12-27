@@ -105,6 +105,10 @@ export default Vue.extend({
 
 				uni.setStorageSync('token', res.token);
 				
+				if(res.user) {
+					uni.setStorageSync('userInfo', res.user);
+				}
+				
 				uni.showToast({
 					title: '登录成功',
 					icon: 'success',

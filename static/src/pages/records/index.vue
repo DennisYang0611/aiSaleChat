@@ -28,12 +28,7 @@
 
 		<!-- 记录列表 -->
 		<scroll-view scroll-y class="records-list" v-if="records.length > 0">
-			<view 
-				v-for="(record, index) in records" 
-				:key="index"
-				class="record-item"
-				@tap="handleRecordClick(record)"
-			>
+			<view v-for="(record, index) in records" :key="index" class="record-item" @tap="handleRecordClick(record)">
 				<view class="record-header">
 					<view class="scene-info">
 						<text class="scene-name">{{ record.sceneName }}</text>
@@ -45,17 +40,10 @@
 				</view>
 
 				<view class="dimension-scores">
-					<view 
-						v-for="(score, scoreIndex) in record.dimensionScores" 
-						:key="scoreIndex"
-						class="dimension-item"
-					>
+					<view v-for="(score, scoreIndex) in record.dimensionScores" :key="scoreIndex" class="dimension-item">
 						<text class="dimension-name">{{ score.name }}</text>
 						<view class="score-bar">
-							<view 
-								class="score-progress"
-								:style="{ width: `${score.score}%` }"
-							></view>
+							<view class="score-progress" :style="{ width: `${score.score}%` }"></view>
 						</view>
 						<text class="dimension-score">{{ score.score }}分</text>
 					</view>
@@ -128,7 +116,7 @@ export default Vue.extend({
 		},
 		handleRecordClick(record: Record) {
 			uni.navigateTo({
-				url: `/pages/score/index?id=${record.id}`
+				url: `/pages/score/index?trainingRecordId=${record.id}`
 			});
 		}
 	},
@@ -340,4 +328,4 @@ export default Vue.extend({
 	font-size: 26rpx;
 	color: #999;
 }
-</style> 
+</style>
